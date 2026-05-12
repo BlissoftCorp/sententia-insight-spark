@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
-import { Search } from "lucide-react";
+import { ChevronRight, Search } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -74,6 +75,7 @@ function UsersPage() {
                 <TableHead className="text-right">Tokens</TableHead>
                 <TableHead>Last Session</TableHead>
                 <TableHead>Created</TableHead>
+                <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -93,11 +95,23 @@ function UsersPage() {
                   <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
                     {formatDateTime(u.createdAt)}
                   </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      asChild
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`View ${u.name} details`}
+                    >
+                      <Link to="/dashboard/users/$userId" params={{ userId: u.id }}>
+                        <ChevronRight className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
                     No users match "{query}"
                   </TableCell>
                 </TableRow>
