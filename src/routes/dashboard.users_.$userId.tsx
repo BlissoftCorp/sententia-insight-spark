@@ -40,7 +40,7 @@ import {
   getUserQueriesSeries,
 } from "@/lib/mock-user-detail";
 
-export const Route = createFileRoute("/dashboard/users/$userId")({
+export const Route = createFileRoute("/dashboard/users_/$userId")({
   loader: ({ params }) => {
     const user = findUser(params.userId);
     if (!user) throw notFound();
