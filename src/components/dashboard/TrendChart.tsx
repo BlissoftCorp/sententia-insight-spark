@@ -42,9 +42,9 @@ const METRICS: Metric[] = [
   {
     key: "payments",
     label: "Payments",
-    description: "Revenue per day, last 7 days",
+    description: "Number of payments per day, last 7 days",
     colorVar: "var(--chart-3)",
-    format: "currency",
+    format: "number",
   },
 ];
 

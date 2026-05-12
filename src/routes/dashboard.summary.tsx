@@ -56,12 +56,7 @@ function SummaryPage() {
         <KpiCard label="New users" value={kpis.newUsers.value} icon={UserPlus} />
         <KpiCard label="Login users" value={kpis.loginUsers.value} icon={LogIn} />
         <KpiCard label="Queries" value={kpis.queries.value} icon={MessageSquare} />
-        <KpiCard
-          label="Payments"
-          value={kpis.payments.value}
-          icon={CreditCard}
-          format="currency"
-        />
+        <KpiCard label="Payments" value={kpis.payments.value} icon={CreditCard} />
       </div>
 
       <TrendChart />
