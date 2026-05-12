@@ -82,13 +82,13 @@ export type TrendPoint = {
 
 export function getLast7Days(): TrendPoint[] {
   const base = [
-    { newUsers: 28, queries: 1_020, payments: 980 },
-    { newUsers: 35, queries: 1_180, payments: 1_120 },
-    { newUsers: 31, queries: 1_090, payments: 1_310 },
-    { newUsers: 48, queries: 1_420, payments: 1_280 },
-    { newUsers: 44, queries: 1_360, payments: 1_510 },
-    { newUsers: 39, queries: 1_540, payments: 1_440 },
-    { newUsers: 52, queries: 1_722, payments: 1_640 },
+    { newUsers: 28, queries: 1_020, payments: 22 },
+    { newUsers: 35, queries: 1_180, payments: 26 },
+    { newUsers: 31, queries: 1_090, payments: 31 },
+    { newUsers: 48, queries: 1_420, payments: 24 },
+    { newUsers: 44, queries: 1_360, payments: 35 },
+    { newUsers: 39, queries: 1_540, payments: 33 },
+    { newUsers: 52, queries: 1_722, payments: 27 },
   ];
   return base.map((b, i) => {
     const d = subDays(new Date(), 6 - i);
