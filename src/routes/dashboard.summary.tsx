@@ -53,13 +53,12 @@ function SummaryPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard label="New users" value={kpis.newUsers.value} delta={kpis.newUsers.delta} icon={UserPlus} />
-        <KpiCard label="Login users" value={kpis.loginUsers.value} delta={kpis.loginUsers.delta} icon={LogIn} />
-        <KpiCard label="Queries" value={kpis.queries.value} delta={kpis.queries.delta} icon={MessageSquare} />
+        <KpiCard label="New users" value={kpis.newUsers.value} icon={UserPlus} />
+        <KpiCard label="Login users" value={kpis.loginUsers.value} icon={LogIn} />
+        <KpiCard label="Queries" value={kpis.queries.value} icon={MessageSquare} />
         <KpiCard
           label="Payments"
           value={kpis.payments.value}
-          delta={kpis.payments.delta}
           icon={CreditCard}
           format="currency"
         />
