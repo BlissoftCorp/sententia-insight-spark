@@ -3,7 +3,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { ChevronRight, Search } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -75,13 +75,24 @@ function UsersPage() {
                 <TableHead className="text-right">Tokens</TableHead>
                 <TableHead>Last Session</TableHead>
                 <TableHead>Created</TableHead>
-                <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map((u) => (
                 <TableRow key={u.id}>
-                  <TableCell className="font-medium">{u.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2.5">
+                      <Link
+                        to="/dashboard/users/$userId"
+                        params={{ userId: u.id }}
+                        aria-label={`View ${u.name} details`}
+                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      >
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </Link>
+                      <span>{u.name}</span>
+                    </div>
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{u.email}</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {fmtNumber.format(u.queries)}
@@ -95,23 +106,11 @@ function UsersPage() {
                   <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
                     {formatDateTime(u.createdAt)}
                   </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      asChild
-                      size="icon"
-                      variant="ghost"
-                      aria-label={`View ${u.name} details`}
-                    >
-                      <Link to="/dashboard/users/$userId" params={{ userId: u.id }}>
-                        <ChevronRight className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </TableCell>
                 </TableRow>
               ))}
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
                     No users match "{query}"
                   </TableCell>
                 </TableRow>
