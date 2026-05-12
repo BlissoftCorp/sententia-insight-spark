@@ -20,31 +20,31 @@ const TABLE: Record<Exclude<RangeKey, "custom">, Kpis> = {
     newUsers: { value: 42, delta: 8.2 },
     loginUsers: { value: 318, delta: 4.1 },
     queries: { value: 1_284, delta: 12.6 },
-    payments: { value: 1_240, delta: -2.3 },
+    payments: { value: 27, delta: -2.3 },
   },
   yesterday: {
     newUsers: { value: 39, delta: 1.2 },
     loginUsers: { value: 305, delta: -3.0 },
     queries: { value: 1_141, delta: 5.4 },
-    payments: { value: 1_270, delta: 6.1 },
+    payments: { value: 31, delta: 6.1 },
   },
   last7: {
     newUsers: { value: 287, delta: 11.4 },
     loginUsers: { value: 2_140, delta: 7.6 },
     queries: { value: 8_932, delta: 14.8 },
-    payments: { value: 9_180, delta: 9.2 },
+    payments: { value: 198, delta: 9.2 },
   },
   thisMonth: {
     newUsers: { value: 1_204, delta: 18.9 },
     loginUsers: { value: 9_420, delta: 12.3 },
     queries: { value: 38_710, delta: 22.1 },
-    payments: { value: 41_360, delta: 16.4 },
+    payments: { value: 842, delta: 16.4 },
   },
   lastMonth: {
     newUsers: { value: 1_012, delta: 6.5 },
     loginUsers: { value: 8_390, delta: 3.4 },
     queries: { value: 31_700, delta: 9.7 },
-    payments: { value: 35_540, delta: 4.2 },
+    payments: { value: 736, delta: 4.2 },
   },
 };
 
