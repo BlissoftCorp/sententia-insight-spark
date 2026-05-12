@@ -14,7 +14,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardUsersRouteImport } from './routes/dashboard.users'
 import { Route as DashboardSummaryRouteImport } from './routes/dashboard.summary'
 import { Route as DashboardPaymentsRouteImport } from './routes/dashboard.payments'
-import { Route as DashboardUsersUserIdRouteImport } from './routes/dashboard.users.$userId'
+import { Route as DashboardUsersUserIdRouteImport } from './routes/dashboard.users_.$userId'
 
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
@@ -42,9 +42,9 @@ const DashboardPaymentsRoute = DashboardPaymentsRouteImport.update({
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardUsersUserIdRoute = DashboardUsersUserIdRouteImport.update({
-  id: '/$userId',
-  path: '/$userId',
-  getParentRoute: () => DashboardUsersRoute,
+  id: '/users_/$userId',
+  path: '/users/$userId',
+  getParentRoute: () => DashboardRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -52,7 +52,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRouteWithChildren
   '/dashboard/payments': typeof DashboardPaymentsRoute
   '/dashboard/summary': typeof DashboardSummaryRoute
-  '/dashboard/users': typeof DashboardUsersRouteWithChildren
+  '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/users/$userId': typeof DashboardUsersUserIdRoute
 }
 export interface FileRoutesByTo {
@@ -60,7 +60,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRouteWithChildren
   '/dashboard/payments': typeof DashboardPaymentsRoute
   '/dashboard/summary': typeof DashboardSummaryRoute
-  '/dashboard/users': typeof DashboardUsersRouteWithChildren
+  '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/users/$userId': typeof DashboardUsersUserIdRoute
 }
 export interface FileRoutesById {
@@ -69,8 +69,8 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRouteWithChildren
   '/dashboard/payments': typeof DashboardPaymentsRoute
   '/dashboard/summary': typeof DashboardSummaryRoute
-  '/dashboard/users': typeof DashboardUsersRouteWithChildren
-  '/dashboard/users/$userId': typeof DashboardUsersUserIdRoute
+  '/dashboard/users': typeof DashboardUsersRoute
+  '/dashboard/users_/$userId': typeof DashboardUsersUserIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -96,7 +96,7 @@ export interface FileRouteTypes {
     | '/dashboard/payments'
     | '/dashboard/summary'
     | '/dashboard/users'
-    | '/dashboard/users/$userId'
+    | '/dashboard/users_/$userId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -141,38 +141,28 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPaymentsRouteImport
       parentRoute: typeof DashboardRoute
     }
-    '/dashboard/users/$userId': {
-      id: '/dashboard/users/$userId'
-      path: '/$userId'
+    '/dashboard/users_/$userId': {
+      id: '/dashboard/users_/$userId'
+      path: '/users/$userId'
       fullPath: '/dashboard/users/$userId'
       preLoaderRoute: typeof DashboardUsersUserIdRouteImport
-      parentRoute: typeof DashboardUsersRoute
+      parentRoute: typeof DashboardRoute
     }
   }
 }
 
-interface DashboardUsersRouteChildren {
-  DashboardUsersUserIdRoute: typeof DashboardUsersUserIdRoute
-}
-
-const DashboardUsersRouteChildren: DashboardUsersRouteChildren = {
-  DashboardUsersUserIdRoute: DashboardUsersUserIdRoute,
-}
-
-const DashboardUsersRouteWithChildren = DashboardUsersRoute._addFileChildren(
-  DashboardUsersRouteChildren,
-)
-
 interface DashboardRouteChildren {
   DashboardPaymentsRoute: typeof DashboardPaymentsRoute
   DashboardSummaryRoute: typeof DashboardSummaryRoute
-  DashboardUsersRoute: typeof DashboardUsersRouteWithChildren
+  DashboardUsersRoute: typeof DashboardUsersRoute
+  DashboardUsersUserIdRoute: typeof DashboardUsersUserIdRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardPaymentsRoute: DashboardPaymentsRoute,
   DashboardSummaryRoute: DashboardSummaryRoute,
-  DashboardUsersRoute: DashboardUsersRouteWithChildren,
+  DashboardUsersRoute: DashboardUsersRoute,
+  DashboardUsersUserIdRoute: DashboardUsersUserIdRoute,
 }
 
 const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
@@ -186,3 +176,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
