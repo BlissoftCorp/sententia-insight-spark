@@ -61,21 +61,15 @@ export function TrendChart() {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       {METRICS.map((m) => {
-        const total = data.reduce((sum, d) => sum + d[m.key], 0);
         const config = {
           [m.key]: { label: m.label, color: m.colorVar },
         } satisfies ChartConfig;
 
         return (
           <Card key={m.key} className="p-5">
-            <div className="mb-4 flex items-start justify-between">
-              <div>
-                <h2 className="text-base font-semibold">{m.label}</h2>
-                <p className="text-xs text-muted-foreground">{m.description}</p>
-              </div>
-              <p className="text-lg font-semibold tabular-nums">
-                {m.format === "currency" ? fmtCurrency.format(total) : fmtNumber.format(total)}
-              </p>
+            <div className="mb-4">
+              <h2 className="text-base font-semibold">{m.label}</h2>
+              <p className="text-xs text-muted-foreground">{m.description}</p>
             </div>
             <ChartContainer config={config} className="h-[200px] w-full">
               <ResponsiveContainer>
