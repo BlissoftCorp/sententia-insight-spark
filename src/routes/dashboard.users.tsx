@@ -79,7 +79,7 @@ function UsersPage() {
           <TableBody>
             {rows.map((u) => (
               <TableRow key={u.id}>
-                <TableCell className="font-medium">
+                <TableCell className="max-w-[180px] font-medium">
                   <div className="flex items-center gap-2.5">
                     <Link
                       to="/dashboard/users/$userId"
@@ -89,10 +89,12 @@ function UsersPage() {
                     >
                       <ChevronRight className="h-3.5 w-3.5" />
                     </Link>
-                    <span>{u.name}</span>
+                    <span className="truncate" title={u.name}>{u.name}</span>
                   </div>
                 </TableCell>
-                <TableCell className="break-all text-muted-foreground">{u.email}</TableCell>
+                <TableCell className="max-w-[200px] truncate text-muted-foreground" title={u.email}>
+                  {u.email}
+                </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {fmtNumber.format(u.queries)}
                 </TableCell>
