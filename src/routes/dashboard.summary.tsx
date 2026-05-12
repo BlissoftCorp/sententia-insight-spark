@@ -29,7 +29,8 @@ export const Route = createFileRoute("/dashboard/summary")({
 });
 
 function SummaryPage() {
-  const { range, from, to } = Route.useSearch();
+  const search = Route.useSearch() as { range: import("@/lib/mock-analytics").RangeKey; from?: string; to?: string };
+  const { range, from, to } = search;
   const navigate = useNavigate({ from: "/dashboard/summary" });
   const kpis = getKpis(range, from, to);
 
