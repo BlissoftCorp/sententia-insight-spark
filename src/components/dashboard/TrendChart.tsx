@@ -1,7 +1,7 @@
 import {
+  Area,
+  AreaChart,
   CartesianGrid,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -11,74 +11,109 @@ import {
 import { Card } from "@/components/ui/card";
 import {
   ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { getLast7Days } from "@/lib/mock-analytics";
+import { getLast7Days, type TrendPoint } from "@/lib/mock-analytics";
 
-const config = {
-  newUsers: { label: "New users", color: "var(--chart-1)" },
-  queries: { label: "Queries", color: "var(--chart-2)" },
-  payments: { label: "Payments", color: "var(--chart-3)" },
-} satisfies ChartConfig;
+type Metric = {
+  key: keyof Pick<TrendPoint, "newUsers" | "queries" | "payments">;
+  label: string;
+  description: string;
+  colorVar: string;
+  format?: "number" | "currency";
+};
+
+const METRICS: Metric[] = [
+  {
+    key: "newUsers",
+    label: "New users",
+    description: "Daily sign-ups, last 7 days",
+    colorVar: "var(--chart-1)",
+    format: "number",
+  },
+  {
+    key: "queries",
+    label: "Queries",
+    description: "AI queries per day, last 7 days",
+    colorVar: "var(--chart-2)",
+    format: "number",
+  },
+  {
+    key: "payments",
+    label: "Payments",
+    description: "Revenue per day, last 7 days",
+    colorVar: "var(--chart-3)",
+    format: "currency",
+  },
+];
+
+const fmtNumber = new Intl.NumberFormat("en-US");
+const fmtCurrency = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  maximumFractionDigits: 0,
+});
 
 export function TrendChart() {
   const data = getLast7Days();
+
   return (
-    <Card className="p-5">
-      <div className="mb-4">
-        <h2 className="text-base font-semibold">Last 7 days overview</h2>
-        <p className="text-sm text-muted-foreground">
-          New users, queries and payments — daily
-        </p>
-      </div>
-      <ChartContainer config={config} className="h-[320px] w-full">
-        <ResponsiveContainer>
-          <LineChart data={data} margin={{ top: 8, right: 12, left: 4, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-            <XAxis
-              dataKey="label"
-              tickLine={false}
-              axisLine={false}
-              tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
-            />
-            <YAxis
-              tickLine={false}
-              axisLine={false}
-              width={40}
-              tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
-            />
-            <Tooltip content={<ChartTooltipContent />} />
-            <ChartLegend content={<ChartLegendContent />} />
-            <Line
-              type="monotone"
-              dataKey="newUsers"
-              stroke="var(--color-newUsers)"
-              strokeWidth={2.5}
-              dot={{ r: 3 }}
-              activeDot={{ r: 5 }}
-            />
-            <Line
-              type="monotone"
-              dataKey="queries"
-              stroke="var(--color-queries)"
-              strokeWidth={2.5}
-              dot={{ r: 3 }}
-              activeDot={{ r: 5 }}
-            />
-            <Line
-              type="monotone"
-              dataKey="payments"
-              stroke="var(--color-payments)"
-              strokeWidth={2.5}
-              dot={{ r: 3 }}
-              activeDot={{ r: 5 }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </ChartContainer>
-    </Card>
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      {METRICS.map((m) => {
+        const total = data.reduce((sum, d) => sum + d[m.key], 0);
+        const config = {
+          [m.key]: { label: m.label, color: m.colorVar },
+        } satisfies ChartConfig;
+
+        return (
+          <Card key={m.key} className="p-5">
+            <div className="mb-4 flex items-start justify-between">
+              <div>
+                <h2 className="text-base font-semibold">{m.label}</h2>
+                <p className="text-xs text-muted-foreground">{m.description}</p>
+              </div>
+              <p className="text-lg font-semibold tabular-nums">
+                {m.format === "currency" ? fmtCurrency.format(total) : fmtNumber.format(total)}
+              </p>
+            </div>
+            <ChartContainer config={config} className="h-[200px] w-full">
+              <ResponsiveContainer>
+                <AreaChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id={`fill-${m.key}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={m.colorVar} stopOpacity={0.4} />
+                      <stop offset="100%" stopColor={m.colorVar} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                  <XAxis
+                    dataKey="label"
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    width={36}
+                    tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  />
+                  <Tooltip content={<ChartTooltipContent />} />
+                  <Area
+                    type="monotone"
+                    dataKey={m.key}
+                    stroke={m.colorVar}
+                    strokeWidth={2.5}
+                    fill={`url(#fill-${m.key})`}
+                    activeDot={{ r: 5 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </Card>
+        );
+      })}
+    </div>
   );
 }
