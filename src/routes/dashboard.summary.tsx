@@ -13,8 +13,8 @@ const searchSchema = z.object({
     z.enum(["today", "yesterday", "last7", "thisMonth", "lastMonth", "custom"]),
     "last7",
   ).default("last7"),
-  from: fallback(z.string().optional(), undefined),
-  to: fallback(z.string().optional(), undefined),
+  from: z.string().optional(),
+  to: z.string().optional(),
 });
 
 export const Route = createFileRoute("/dashboard/summary")({
