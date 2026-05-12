@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
-import { Search, User as UserIcon } from "lucide-react";
+import { Search } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,16 +29,6 @@ const fmtNumber = new Intl.NumberFormat("en-US");
 
 function formatDateTime(iso: string) {
   return format(new Date(iso), "d/M/yyyy HH:mm:ss");
-}
-
-function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .map((n) => n[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
 }
 
 function UsersPage() {
@@ -81,6 +71,7 @@ function UsersPage() {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead className="text-right">Queries</TableHead>
+                <TableHead className="text-right">Tokens</TableHead>
                 <TableHead>Last Session</TableHead>
                 <TableHead>Created</TableHead>
               </TableRow>
@@ -88,21 +79,13 @@ function UsersPage() {
             <TableBody>
               {rows.map((u) => (
                 <TableRow key={u.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-brand-foreground"
-                        style={{ backgroundImage: "var(--gradient-brand)" }}
-                        aria-hidden
-                      >
-                        {initials(u.name) || <UserIcon className="h-4 w-4" />}
-                      </div>
-                      <span className="font-medium">{u.name}</span>
-                    </div>
-                  </TableCell>
+                  <TableCell className="font-medium">{u.name}</TableCell>
                   <TableCell className="text-muted-foreground">{u.email}</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {fmtNumber.format(u.queries)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {fmtNumber.format(u.tokens)}
                   </TableCell>
                   <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
                     {formatDateTime(u.lastSession)}
@@ -114,7 +97,7 @@ function UsersPage() {
               ))}
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
                     No users match "{query}"
                   </TableCell>
                 </TableRow>
