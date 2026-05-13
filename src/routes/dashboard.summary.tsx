@@ -62,14 +62,35 @@ function SummaryPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard label="New users" value={kpis.newUsers.value} icon={UserPlus} />
-        <KpiCard label="Login users" value={kpis.loginUsers.value} icon={LogIn} />
-        <KpiCard label="Queries" value={kpis.queries.value} icon={MessageSquare} />
-        <KpiCard label="Payments" value={kpis.payments.value} icon={CreditCard} />
-      </div>
+      {loading ? (
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i} className="p-5">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="mt-3 h-8 w-32" />
+              </Card>
+            ))}
+          </div>
+          <Card className="flex h-[260px] items-center justify-center p-5">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading data…
+            </div>
+          </Card>
+        </>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <KpiCard label="New users" value={kpis.newUsers.value} icon={UserPlus} />
+            <KpiCard label="Login users" value={kpis.loginUsers.value} icon={LogIn} />
+            <KpiCard label="Queries" value={kpis.queries.value} icon={MessageSquare} />
+            <KpiCard label="Payments" value={kpis.payments.value} icon={CreditCard} />
+          </div>
 
-      <TrendChart />
+          <TrendChart />
+        </>
+      )}
     </div>
   );
 }
