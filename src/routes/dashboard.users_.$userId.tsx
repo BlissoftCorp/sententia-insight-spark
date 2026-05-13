@@ -206,7 +206,7 @@ function UserDetailPage() {
           <div>
             <h2 className="text-base font-semibold">Payments</h2>
             <p className="text-xs text-muted-foreground">
-              Token recharges made by this user
+              Credit recharges made by this user
             </p>
           </div>
           <span className="text-xs text-muted-foreground">
@@ -220,7 +220,7 @@ function UserDetailPage() {
                 <TableHead>Operation ID</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Price</TableHead>
-                <TableHead className="text-right">Tokens</TableHead>
+                <TableHead className="text-right">Credits</TableHead>
                 <TableHead>Created</TableHead>
               </TableRow>
             </TableHeader>
