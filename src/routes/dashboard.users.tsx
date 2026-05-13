@@ -71,7 +71,7 @@ function UsersPage() {
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead className="text-right">Queries</TableHead>
-              <TableHead className="text-right">Tokens</TableHead>
+              <TableHead className="text-right">Credits</TableHead>
               <TableHead>Last Session</TableHead>
               <TableHead className="hidden lg:table-cell">Created</TableHead>
             </TableRow>
