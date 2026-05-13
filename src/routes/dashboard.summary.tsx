@@ -1,18 +1,21 @@
+import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { fallback, zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
-import { CreditCard, LogIn, MessageSquare, UserPlus } from "lucide-react";
+import { CreditCard, Loader2, LogIn, MessageSquare, UserPlus } from "lucide-react";
 
 import { DateRangeFilter } from "@/components/dashboard/DateRangeFilter";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { TrendChart } from "@/components/dashboard/TrendChart";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getKpis, RANGE_LABELS } from "@/lib/mock-analytics";
 
 const searchSchema = z.object({
   range: fallback(
     z.enum(["today", "yesterday", "last7", "thisMonth", "lastMonth", "custom"]),
-    "last7",
-  ).default("last7"),
+    "today",
+  ).default("today"),
   from: z.string().optional(),
   to: z.string().optional(),
 });
@@ -33,6 +36,13 @@ function SummaryPage() {
   const { range, from, to } = search;
   const navigate = useNavigate({ from: "/dashboard/summary" });
   const kpis = getKpis(range, from, to);
+
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    setLoading(true);
+    const t = setTimeout(() => setLoading(false), 450);
+    return () => clearTimeout(t);
+  }, [range, from, to]);
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
