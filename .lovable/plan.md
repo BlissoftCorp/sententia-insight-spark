@@ -1,80 +1,76 @@
-# Sententia Analytics Dashboard – Plan
 
-Build a mocked analytics dashboard for sententia.app with brand identity from the uploaded logo (deep navy `#000a2e` + violet/blue gradient `#a5b4ff → #6366f1`).
+# Plan: probar conexión a Postgres y explorar el schema
 
-## 1. Brand & design system
+Objetivo: validar las credenciales, probar la conexión a tu Postgres en el VPS, y explorar tablas/vistas. Sin tocar el dashboard mockup todavía.
 
-- Copy `Logo_Png.png` and `Full_Logo.jpg` to `src/assets/`.
-- Update `src/styles.css`:
-  - Light + dark tokens tuned to Sententia: navy background option, primary violet/indigo, gradient token `--gradient-brand`.
-  - Keep oklch format, semantic tokens only.
-- Set page `<head>` title/description to "Sententia – Analytics".
+## Paso 1 — Guardar credenciales como secrets
 
-## 2. Routing structure (TanStack Start)
+Voy a pedirte las credenciales con el formulario seguro (`add_secret`). No las pegues en el chat. Los nombres serán los estándar de Postgres para que `psql` los use automáticamente:
 
-Create a layout route + child routes under a shared sidebar shell:
+- `PGHOST` — IP o hostname del VPS
+- `PGPORT` — puerto (normalmente 5432)
+- `PGUSER` — usuario
+- `PGPASSWORD` — password
+- `PGDATABASE` — nombre de la DB
+- `PGSSLMODE` — `require` si el server soporta SSL, si no `disable` (te pregunto cuál usar)
 
+Estos secrets quedan disponibles como variables de entorno tanto en el sandbox (para exploración con `psql`) como luego en el server runtime cuando cableemos la app.
+
+## Paso 2 — Verificar conectividad de red
+
+Antes de autenticar, confirmo que el sandbox alcanza tu VPS:
+
+- Ping/DNS al host
+- Test de TCP al puerto (`nc -zv $PGHOST $PGPORT`)
+
+Si esto falla, el problema es firewall/IP allowlist en el VPS, no la app. **Importante:** vas a necesitar permitir las IPs salientes del sandbox de Lovable y, más adelante, las de Cloudflare Workers. Lo confirmamos cuando lleguemos ahí.
+
+## Paso 3 — Probar conexión y autenticación
+
+```bash
+psql -c "SELECT version(), current_database(), current_user, now();"
 ```
-src/routes/
-  __root.tsx                  (existing, unchanged except meta)
-  index.tsx                   → redirect to /summary
-  dashboard.tsx               (layout: Sidebar + <Outlet/>)
-  dashboard.summary.tsx       → /dashboard/summary
-  dashboard.users.tsx         → /dashboard/users  (placeholder "Coming soon")
-  dashboard.payments.tsx      → /dashboard/payments (placeholder "Coming soon")
-```
 
-Logout is a sidebar button (mock: just navigates to `/`, toast "Logged out").
+Esto valida credenciales, SSL y permisos básicos en una sola consulta.
 
-## 3. Sidebar
+## Paso 4 — Explorar schema (read-only)
 
-`src/components/app-sidebar.tsx` using shadcn `Sidebar` (`collapsible="icon"`):
-- Header: Sententia logo + wordmark.
-- Items: Summary (LayoutDashboard), Users (Users), Payments (CreditCard).
-- Footer: Logout (LogOut icon) as a `SidebarMenuButton`.
-- Active state via `useRouterState`.
-- `SidebarTrigger` in top header bar inside `dashboard.tsx`.
+Una serie de queries informativas para mapear la base:
 
-## 4. Summary page
+- Lista de schemas: `SELECT schema_name FROM information_schema.schemata`
+- Tablas y vistas por schema con conteo de columnas
+- Tamaño aproximado de cada tabla (`pg_total_relation_size`)
+- Conteo de filas (estimado vía `pg_class.reltuples` para no escanear)
+- Para tablas clave: columnas, tipos, primary keys, foreign keys, índices
 
-`src/routes/dashboard.summary.tsx` composed of small components in `src/components/dashboard/`:
+Te entrego un resumen del schema en chat + un archivo `/mnt/documents/schema-overview.md` que puedes descargar.
 
-### a) Date range filter (`DateRangeFilter.tsx`)
-Segmented control / `Tabs`-style buttons:
-- Today, Yesterday, Last 7 days, This month, Last month, Custom.
-- Custom opens a `Popover` with shadcn `Calendar` (range mode).
-- State stored in URL search params via `validateSearch` (`range` + optional `from`/`to`) so refresh keeps view.
+## Paso 5 — Queries de muestreo
 
-### b) KPI cards (`KpiCard.tsx` × 4)
-Grid of 4 cards: New users, Login users, Queries, Payments.
-- Big number, label, delta vs. previous period (e.g. `+12.4%`), small sparkline.
-- Icon per card with brand gradient background.
+Sobre 3-5 tablas que tú escojas (o que yo identifique como relevantes para Users / Queries / Payments del dashboard):
 
-### c) Trend chart (`TrendChart.tsx`)
-Uses shadcn `Chart` (Recharts) – a single combined line chart for the **last 7 days** showing 3 series:
-- New users, Queries, Payments (each its own colored line).
-- Legend, tooltip, X axis = day labels (Mon, Tue …), responsive.
-- Title "Last 7 days overview".
+- `SELECT * ... LIMIT 5` para ver forma real de los datos
+- Conteos por fecha para ver rango temporal disponible
+- Identificar columnas candidatas a "user", "query/event", "payment", "created_at", "last_session"
 
-(The 7-day chart is fixed to last 7 days as specified, regardless of the top filter.)
+Esto es lo que después usaremos para mapear data real al mockup.
 
-## 5. Mock data
+## Lo que NO hace este plan
 
-`src/lib/mock-analytics.ts`:
-- `getKpis(range)` → returns `{ newUsers, loginUsers, queries, payments, deltas }` with hand-tuned numbers per range key.
-- `getLast7Days()` → array of `{ date, newUsers, queries, payments }` with believable up/down variation.
-- Custom range falls back to a deterministic seeded random based on date span so numbers feel stable.
+- No modifica ningún archivo del frontend ni del mockup.
+- No crea server functions ni cablea el dashboard.
+- No instala dependencias en el proyecto (solo usa `psql` ya disponible en el sandbox).
 
-## 6. Technical details
+## Nota técnica para la siguiente fase (cuando cableemos la app)
 
-- Strict TypeScript; all new files typed.
-- Only semantic Tailwind tokens (`bg-card`, `text-muted-foreground`, `bg-primary`, new `bg-gradient-brand` utility via arbitrary `bg-[image:var(--gradient-brand)]` or a small CSS class).
-- No backend yet – everything client-side mock.
-- SEO: per-route `head()` (title/description/canonical) on summary/users/payments.
-- Accessibility: each KPI card uses semantic `<article>` + `aria-label`; chart has `role="img"` with summary.
+El backend de la app corre en Cloudflare Workers, donde el driver clásico `pg` (TCP) no funciona. Las opciones reales serán:
 
-## 7. Out of scope (future)
+1. **Postgres HTTP proxy** (ej. Supabase Data API, PostgREST, Neon serverless driver, `@prisma/driver-adapter-pg-worker`) — recomendado.
+2. **Hyperdrive de Cloudflare** con driver compatible — requiere setup adicional.
+3. **Migrar a Lovable Cloud / Supabase** y replicar/sincronizar datos — solo si tiene sentido.
 
-- Real auth + Supabase wiring for Logout and live data.
-- Users + Payments page contents (only stub now).
-- Export / drill-down.
+No decidimos esto ahora; primero validamos que la DB tenga lo que necesitamos.
+
+## Siguiente acción
+
+Si apruebas el plan, te abro el formulario para meter los 6 secrets (incluido `PGSSLMODE`) y arranco con los pasos 2-5 de corrido.
