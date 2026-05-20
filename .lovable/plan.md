@@ -1,134 +1,255 @@
-# Opción D — Hospedar el dashboard en un VPS Contabo con IP fija
 
-En vez de abrir Postgres a los rangos de Cloudflare (Opción B), sacamos el backend del dashboard de Cloudflare Workers y lo corremos en un VPS de Contabo con IP fija. El dev solo whitelistea **una IP** en `pg_hba.conf` y listo — la superficie expuesta es mínima.
+# Plan de despliegue — `dashboard.blissoft.tech` en VPS Contabo `109.123.252.40`
+
+Objetivo: que el dashboard corra como un sitio más del VPS Contabo (junto a tus WordPress y Blazor), con su propio subdominio y SSL, conectándose por IP fija al VPS de Postgres.
 
 ---
 
-## Arquitectura objetivo
+## 0. Estado actual
+
+- VPS Contabo con varios proyectos en `/var/www/*` (WordPress, Blazor, etc.). Webmin instalado.
+- IPv4 fija del VPS Contabo: **`109.123.252.40`** → la única IP que se whitelistea en el Postgres remoto.
+- Subdominio elegido: **`dashboard.blissoft.tech`**.
+- Código del dashboard actualmente compila para Cloudflare Workers (`wrangler.jsonc`, `@cloudflare/vite-plugin`). Hay que cambiarlo a un build Node/Bun estándar para correrlo en el VPS.
+
+---
+
+## 1. DNS — apuntar el subdominio al VPS (lo haces tú, 2 min)
+
+En el panel donde gestionas `blissoft.tech` (Cloudflare, Namecheap, IONOS, etc.) crea **un solo registro**:
+
+```text
+Tipo:   A
+Nombre: dashboard
+Valor:  109.123.252.40
+TTL:    Auto (o 300)
+Proxy:  Si es Cloudflare → al principio en "DNS only" (nube gris), luego puedes activarlo
+```
+
+Verifica desde tu portátil:
+```bash
+dig +short dashboard.blissoft.tech
+# debe devolver: 109.123.252.40
+```
+
+---
+
+## 2. Postgres remoto — abrir solo a esta IP (lo hace el dev, 5 min)
+
+Mensaje listo para el dev:
+
+> En el VPS de Postgres, sustituir las reglas Cloudflare anteriores por esto:
+>
+> 1. En `pg_hba.conf` añadir UNA sola línea:
+>    ```
+>    hostssl  sententia_db  sententia_user  109.123.252.40/32   scram-sha-256
+>    ```
+> 2. `sudo systemctl reload postgresql`
+> 3. Firewall (ufw / iptables): abrir `5432/tcp` solo a `109.123.252.40/32` y cerrar el resto.
+> 4. Confirmar `ssl = on` en `postgresql.conf` y rotar el password de `sententia_user`. Pasármelo por canal seguro.
+
+Postgres queda accesible solo desde nuestro VPS Contabo, nada más.
+
+---
+
+## 3. Preparar el VPS Contabo (sin romper lo existente)
+
+Lo importante: **no tocamos** ningún `vhost` de WordPress ni el Blazor. Solo añadimos cosas nuevas.
+
+### 3.1. Comprobaciones previas (por SSH)
+
+```bash
+# qué web server tienes
+nginx -v 2>&1 | head -1
+apache2 -v 2>&1 | head -1
+
+# puertos en uso (80/443 quién los sirve)
+sudo ss -tlnp | grep -E ':80|:443|:3000'
+
+# qué hay en /var/www
+ls -la /var/www
+```
+
+Según el resultado:
+- **Si ya hay Nginx** → añadimos un server block más, certbot reusa.
+- **Si solo hay Apache** → instalamos Nginx **escuchando en un puerto interno** (ej. 8080) solo para el dashboard, o añadimos un VirtualHost Apache que haga proxy a Node. Te lo confirmo cuando me digas qué hay.
+- **Si hay Webmin con Virtualmin** → creamos el subdominio desde ahí y enchufamos el reverse proxy. También sirve.
+
+### 3.2. Crear usuario y carpeta dedicada
+
+```bash
+sudo adduser --system --group --home /opt/dashboard dashboard
+sudo mkdir -p /opt/dashboard
+sudo chown -R dashboard:dashboard /opt/dashboard
+```
+
+Mantiene el código y los procesos del dashboard aislados del resto.
+
+### 3.3. Instalar runtime (Bun recomendado, Node 20 alternativa)
+
+```bash
+# Bun (recomendado, ya es el runtime que usamos)
+curl -fsSL https://bun.sh/install | sudo -u dashboard bash
+
+# o Node 20
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+```
+
+### 3.4. Clonar el repo
+
+Cuando publiquemos el código a GitHub:
+```bash
+sudo -u dashboard git clone <repo-url> /opt/dashboard/app
+```
+
+### 3.5. Variables de entorno
+
+`/etc/dashboard.env` (modo `600`, owner root):
+```bash
+PGHOST=<ip-vps-postgres>
+PGPORT=5432
+PGDATABASE=sententia_db
+PGUSER=sententia_user
+PGPASSWORD=<password-rotado>
+PGSSLMODE=require
+NODE_ENV=production
+PORT=3000
+```
+
+---
+
+## 4. Cambios en el código del dashboard (lo hago yo en Lovable)
+
+Hoy el build apunta a Cloudflare Workers. Para correr en el VPS:
+
+1. Quitar `wrangler.jsonc` y el plugin `cloudflare` del `vite.config.ts`.
+2. Cambiar el adaptador de TanStack Start a **Node/Bun** (entry estándar que escucha en `process.env.PORT`).
+3. `src/lib/db.server.ts` y los server functions (`src/lib/analytics.functions.ts`) **no cambian**.
+4. Añadir scripts en `package.json`:
+   ```json
+   "scripts": {
+     "build": "vite build",
+     "start": "node .output/server/index.mjs"   // o bun, según runtime
+   }
+   ```
+5. Documentar comando de deploy: `git pull && bun install && bun run build && sudo systemctl restart dashboard`.
+
+Esto solo lo arranco **cuando confirmes que vamos por esta ruta**, porque rompe temporalmente el preview de Lovable.
+
+---
+
+## 5. Servicio systemd (auto-arranque + restart)
+
+`/etc/systemd/system/dashboard.service`:
+
+```ini
+[Unit]
+Description=Sententia Dashboard (TanStack Start SSR)
+After=network.target
+
+[Service]
+Type=simple
+User=dashboard
+Group=dashboard
+WorkingDirectory=/opt/dashboard/app
+EnvironmentFile=/etc/dashboard.env
+ExecStart=/home/dashboard/.bun/bin/bun run start
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now dashboard
+sudo systemctl status dashboard
+```
+
+El servidor SSR queda escuchando en `127.0.0.1:3000` (no expuesto al mundo).
+
+---
+
+## 6. Reverse proxy + SSL (sin tocar tus otros sitios)
+
+### Caso Nginx (lo más común)
+
+`/etc/nginx/sites-available/dashboard.blissoft.tech`:
+```nginx
+server {
+  listen 80;
+  server_name dashboard.blissoft.tech;
+
+  location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade           $http_upgrade;
+    proxy_set_header Connection        "upgrade";
+  }
+}
+```
+
+```bash
+sudo ln -s /etc/nginx/sites-available/dashboard.blissoft.tech /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+
+# SSL Let's Encrypt (renueva solo)
+sudo apt-get install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d dashboard.blissoft.tech
+```
+
+### Caso Apache
+
+Si el VPS usa Apache, te paso un `VirtualHost` equivalente con `ProxyPass http://127.0.0.1:3000/` y `certbot --apache`. Lo decidimos cuando me confirmes qué hay corriendo.
+
+---
+
+## 7. Validación end-to-end
+
+1. `https://dashboard.blissoft.tech/dashboard/summary` carga.
+2. Desaparece el banner **"Could not load live data"**.
+3. KPIs (New users, Active users, Queries) y Top users muestran datos reales.
+4. Cambiar rango (Today / Last 7 days / This month) funciona y los deltas tienen sentido.
+5. `sudo journalctl -u dashboard -f` no muestra errores de conexión.
+6. WordPress, Blazor y demás siguen funcionando exactamente igual (probarlo).
+
+---
+
+## 8. Diagrama final
 
 ```text
 [ Navegador ]
-     │  HTTPS
+     │ HTTPS
      ▼
-[ Cloudflare DNS + (opcional) proxy ]
+[ Cloudflare DNS ] → A dashboard.blissoft.tech → 109.123.252.40
      │
      ▼
-[ VPS Contabo — IP fija X.X.X.X ]
-  ├── Nginx (TLS, reverse proxy)
-  └── Node.js (Bun) corriendo el dashboard (SSR + server functions)
-     │  SSL, IP fija
-     ▼
-[ VPS Postgres — pg_hba allow X.X.X.X/32 ]
+[ VPS Contabo 109.123.252.40 ]
+  ├── Nginx :443  (tus WordPress, Blazor, etc.)  ← intactos
+  └── Nginx :443  dashboard.blissoft.tech → proxy 127.0.0.1:3000
+        └── systemd: dashboard.service (Bun + TanStack SSR)
+              │ SSL, desde IP 109.123.252.40
+              ▼
+[ VPS Postgres ]  pg_hba: allow 109.123.252.40/32 únicamente
 ```
-
-Postgres sigue cerrado al mundo: solo acepta `35.195.94.243/32` (la regla que ya existe) **más** la IP del nuevo VPS Contabo.
 
 ---
 
-## Qué hay que hacer (de punta a punta)
+## Lo que necesito de ti antes de avanzar
 
-### 1. Provisionar el VPS Contabo
-- Plan VPS S/M (suficiente para SSR + server functions de un dashboard interno).
-- Ubuntu 22.04 LTS, IPv4 fija (Contabo la da por defecto).
-- Anotar la IP pública → es la que se whitelistea.
-
-### 2. Hardening básico del VPS
-- Usuario no-root con sudo, SSH por clave, `PasswordAuthentication no`.
-- `ufw`: permitir solo `22/tcp` (SSH), `80/tcp`, `443/tcp`. Cerrar todo lo demás.
-- `unattended-upgrades` para parches de seguridad automáticos.
-- `fail2ban` con jail para SSH.
-
-### 3. Runtime de la app
-- Instalar Bun (o Node 20 LTS) + `git`.
-- Clonar el repo del dashboard.
-- Variables de entorno (`/etc/dashboard.env`, modo `600`):
-  - `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`, `PGSSLMODE=require`
-  - Secrets de Supabase Auth si aplica.
-- Build: `bun install && bun run build`.
-- Servicio systemd `dashboard.service` que arranca el servidor SSR en `127.0.0.1:3000` con `Restart=always`.
-
-### 4. Nginx + TLS al frente
-- Nginx como reverse proxy `https://dashboard.tu-dominio.com → 127.0.0.1:3000`.
-- TLS con Let's Encrypt (`certbot --nginx`), renovación automática.
-- Headers de seguridad (HSTS, `X-Frame-Options`, etc.).
-- (Opcional) Cloudflare proxy "naranja" delante para WAF/DDoS — el origen sigue siendo la IP de Contabo y Postgres sigue viendo SOLO la IP del VPS.
-
-### 5. Postgres del otro VPS
-Un único cambio en `pg_hba.conf`:
-```text
-hostssl  sententia_db  sententia_user  X.X.X.X/32   scram-sha-256
-```
-(donde `X.X.X.X` es la IP de Contabo). Luego:
+Tres datos cortos por SSH al VPS Contabo (un solo bloque que puedes pegar):
 ```bash
-sudo systemctl reload postgresql
+nginx -v 2>&1 | head -1
+apache2 -v 2>&1 | head -1
+sudo ss -tlnp | grep -E ':80|:443'
+ls /etc/nginx/sites-enabled 2>/dev/null
+ls /etc/apache2/sites-enabled 2>/dev/null
 ```
-Y en el firewall: abrir `5432/tcp` SOLO a `X.X.X.X/32`.
 
-### 6. Migrar el dominio del dashboard
-- Apuntar `dashboard.tu-dominio.com` (DNS) al VPS Contabo.
-- Quitar el dominio del proyecto Lovable (o dejarlo solo para preview).
-
----
-
-## Qué cambia en el código del dashboard
-
-**Casi nada.** El código actual (`src/lib/db.server.ts`, server functions en `src/lib/analytics.functions.ts`) ya funciona en Node/Bun igual que en Cloudflare Workers. Lo único a tocar:
-
-1. **Adaptador de servidor**: hoy compila para Cloudflare Workers (`wrangler.jsonc`). Hay que cambiar a un build Node/Bun estándar (servidor HTTP de TanStack Start sobre Node).
-2. **Quitar dependencias específicas de Workers** si las hubiera (no se detectan en el código actual).
-3. **`db.server.ts`** ya está OK (`postgres` package, SSL con `rejectUnauthorized: false`).
-4. **CI/Deploy**: pipeline para hacer pull + build + `systemctl restart dashboard` en el VPS (puede ser un `git pull` manual al inicio y automatizar después con GitHub Actions + SSH).
-
----
-
-## Comparación rápida con Opción B
-
-| | Opción B (Cloudflare Workers + allowlist de rangos) | Opción D (VPS Contabo + IP fija) |
-|---|---|---|
-| IPs a whitelistear | ~15 rangos CIDR de Cloudflare | **1 IP /32** |
-| Superficie de ataque a Postgres | Cualquier sitio detrás de Cloudflare | Solo ese VPS |
-| Mantenimiento de IPs | Revisar rangos Cloudflare cada ~6 meses | Cero (IP fija de Contabo) |
-| Cambios en el código | Ninguno | Cambiar adaptador a Node, dejar de usar Workers |
-| Hosting | Lovable (incluido) | Contabo (~5–10 €/mes) + tiempo de ops |
-| Escalado/CDN | Automático global | Manual; Cloudflare delante si se quiere |
-| TLS / dominio | Lovable lo gestiona | Certbot + Nginx, tú lo gestionas |
-
----
-
-## Riesgos / cosas a tener en cuenta
-
-- **Ops**: ahora tú (o el dev) mantenéis dos VPS en vez de uno. Backups, monitoreo (uptime, logs), parches, renovación de certs.
-- **Single point of failure**: si el VPS Contabo cae, el dashboard cae. Mitigable con monitoring (UptimeRobot, Better Stack) y un runbook simple de restart.
-- **Deploy**: pierdes el "push to deploy" de Lovable para producción. Lovable sigue siendo perfecto para iterar en preview; producción se despliega al VPS con un script.
-- **Coste**: ~5–10 €/mes extra de Contabo.
-- **Latencia**: VPS único en una región vs. edge global de Workers. Para un dashboard interno con pocos usuarios es irrelevante.
-
----
-
-## Mensaje listo para el dev
-
-> Hola, cambio de plan respecto al mensaje anterior de los rangos Cloudflare. En vez de eso, voy a hospedar el dashboard en un VPS Contabo con IP fija (`X.X.X.X`, te la confirmo cuando lo provisione). Lo único que necesito de tu lado en el VPS de Postgres es:
->
-> 1. En `pg_hba.conf`, **en vez de** los rangos Cloudflare que te pasé antes, añadir una sola línea:
->    ```
->    hostssl  sententia_db  sententia_user  X.X.X.X/32   scram-sha-256
->    ```
-> 2. `sudo systemctl reload postgresql`.
-> 3. Firewall (ufw/iptables): abrir `5432/tcp` solo a `X.X.X.X/32`.
-> 4. Confirmar que `ssl = on` en `postgresql.conf` y que `sententia_user` tiene password fuerte (rotarlo y enviármelo por canal seguro).
->
-> Con eso Postgres queda expuesto a una sola IP del mundo, que es la mía. Nada más que cambiar en tu lado.
-
----
-
-## Plan de implementación (orden recomendado)
-
-1. **Tú**: contratar VPS Contabo, anotar IP, pasarle al dev los pasos del mensaje de arriba.
-2. **Dev**: añade la línea en `pg_hba.conf`, recarga Postgres, ajusta firewall, rota password.
-3. **Yo (en Lovable)**: ajustar el build del proyecto para que pueda servirse desde Node/Bun (quitar adaptador Workers, añadir entrypoint Node de TanStack Start). Validar localmente que `bun run build && bun run start` levanta el SSR.
-4. **Tú/Dev**: provisionar el VPS Contabo (hardening, Bun, Nginx, certbot, systemd) — te puedo dejar un script de bootstrap.
-5. **Deploy inicial**: clonar repo, `bun install`, `bun run build`, `systemctl start dashboard`, apuntar DNS.
-6. **Validación**: cargar `https://dashboard.tu-dominio.com/dashboard/summary`, confirmar que desaparece el banner "Could not load live data" y que KPIs + Top users muestran datos reales.
-7. **Limpieza**: desactivar/retirar el dominio de producción en Lovable (preview sigue útil para iterar).
-
-¿Avanzo con el paso 3 (adaptar el build para Node/Bun) en cuanto me confirmes que quieres tirar por esta ruta?
+Con eso confirmo si vamos por **Nginx puro** o **Apache + proxy**, y arranco los cambios de código del paso 4.
