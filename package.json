@@ -8,6 +8,8 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
+    "start": "bun run scripts/start.ts",
+    "start:prod": "NODE_ENV=production bun run scripts/start.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
