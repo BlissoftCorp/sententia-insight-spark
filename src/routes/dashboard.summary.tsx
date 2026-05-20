@@ -46,7 +46,7 @@ export const Route = createFileRoute("/dashboard/summary")({
 });
 
 function SummaryPage() {
-  const search = Route.useSearch();
+  const search = Route.useSearch() as { range: RangeKey; from?: string; to?: string };
   const navigate = useNavigate({ from: "/dashboard/summary" });
 
   return (
