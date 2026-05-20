@@ -170,7 +170,7 @@ export const getSummary = createServerFn({ method: "POST" })
         >`
           SELECT
             u.id::text AS id,
-            u.name,
+            COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS name,
             u.email,
             COUNT(m.*)::text AS queries,
             COALESCE(SUM((m.usage->>'total_tokens')::int), 0)::text AS tokens
@@ -178,7 +178,7 @@ export const getSummary = createServerFn({ method: "POST" })
           JOIN conversations c ON c.user_id = u.id
           JOIN messages m ON m.conversation_id = c.id
           WHERE m.role='user' AND m.created_at BETWEEN ${from} AND ${to}
-          GROUP BY u.id, u.name, u.email
+          GROUP BY u.id, u.email, u.first_name, u.last_name
           ORDER BY queries DESC NULLS LAST
           LIMIT 5
         `,
@@ -240,7 +240,7 @@ export const getUsersList = createServerFn({ method: "GET" }).handler(
       >`
         SELECT
           u.id::text AS id,
-          u.name,
+          COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS name,
           u.email,
           COALESCE(stats.queries, 0)::text AS queries,
           COALESCE(stats.tokens, 0)::text AS tokens,
@@ -299,7 +299,11 @@ export const getUserDetail = createServerFn({ method: "POST" })
 
       const [userRow, lastSession, seriesRows] = await Promise.all([
         sql<{ id: string; name: string | null; email: string; created_at: Date }[]>`
-          SELECT u.id::text AS id, u.name, u.email, u.created_at
+          SELECT
+            u.id::text AS id,
+            COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS name,
+            u.email,
+            u.created_at
           FROM users u WHERE u.id::text = ${data.userId} LIMIT 1
         `,
         sql<{ last: Date | null }[]>`
