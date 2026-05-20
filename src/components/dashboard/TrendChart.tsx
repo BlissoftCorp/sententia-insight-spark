@@ -14,50 +14,39 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { getLast7Days, type TrendPoint } from "@/lib/mock-analytics";
+import type { SummaryResponse } from "@/lib/analytics.functions";
+
+type TrendPoint = SummaryResponse["trend"][number];
 
 type Metric = {
-  key: keyof Pick<TrendPoint, "newUsers" | "queries" | "payments">;
+  key: "newUsers" | "queries" | "activeUsers";
   label: string;
   description: string;
   colorVar: string;
-  format?: "number" | "currency";
 };
 
 const METRICS: Metric[] = [
   {
     key: "newUsers",
     label: "New users",
-    description: "Daily sign-ups, last 7 days",
+    description: "Daily sign-ups in selected range",
     colorVar: "var(--chart-1)",
-    format: "number",
   },
   {
     key: "queries",
     label: "Queries",
-    description: "AI queries per day, last 7 days",
+    description: "AI queries per day in selected range",
     colorVar: "var(--chart-2)",
-    format: "number",
   },
   {
-    key: "payments",
-    label: "Payments",
-    description: "Number of payments per day, last 7 days",
+    key: "activeUsers",
+    label: "Active users",
+    description: "Distinct users with queries per day",
     colorVar: "var(--chart-3)",
-    format: "number",
   },
 ];
 
-const fmtNumber = new Intl.NumberFormat("en-US");
-const fmtCurrency = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 0,
-});
-
-export function TrendChart() {
-  const data = getLast7Days();
-
+export function TrendChart({ data }: { data: TrendPoint[] }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       {METRICS.map((m) => {

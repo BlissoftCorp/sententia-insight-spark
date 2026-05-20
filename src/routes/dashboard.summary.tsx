@@ -1,16 +1,19 @@
-import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { fallback, zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
+import { Suspense } from "react";
 import { Activity, CreditCard, Loader2, MessageSquare, UserPlus } from "lucide-react";
 
 import { DateRangeFilter } from "@/components/dashboard/DateRangeFilter";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { TopUsersCard } from "@/components/dashboard/TopUsersCard";
 import { TrendChart } from "@/components/dashboard/TrendChart";
+import { DataErrorBanner } from "@/components/dashboard/DataErrorBanner";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getKpis, RANGE_LABELS } from "@/lib/mock-analytics";
+import { getSummary } from "@/lib/analytics.functions";
+import { RANGE_LABELS, type RangeKey } from "@/lib/mock-analytics";
 
 const searchSchema = z.object({
   range: fallback(
@@ -21,29 +24,30 @@ const searchSchema = z.object({
   to: z.string().optional(),
 });
 
+const summaryQuery = (range: RangeKey, from?: string, to?: string) =>
+  queryOptions({
+    queryKey: ["summary", range, from ?? null, to ?? null],
+    queryFn: () => getSummary({ data: { range, from, to } }),
+    staleTime: 30_000,
+  });
+
 export const Route = createFileRoute("/dashboard/summary")({
   validateSearch: zodValidator(searchSchema),
+  loaderDeps: ({ search: { range, from, to } }) => ({ range, from, to }),
+  loader: ({ context, deps }) =>
+    context.queryClient.ensureQueryData(summaryQuery(deps.range, deps.from, deps.to)),
   head: () => ({
     meta: [
       { title: "Summary — Sententia Analytics" },
-      { name: "description", content: "New users, logins, queries and payments at a glance." },
+      { name: "description", content: "New users, active users, queries and payments at a glance." },
     ],
   }),
   component: SummaryPage,
 });
 
 function SummaryPage() {
-  const search = Route.useSearch() as { range: import("@/lib/mock-analytics").RangeKey; from?: string; to?: string };
-  const { range, from, to } = search;
+  const search = Route.useSearch() as { range: RangeKey; from?: string; to?: string };
   const navigate = useNavigate({ from: "/dashboard/summary" });
-  const kpis = getKpis(range, from, to);
-
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    setLoading(true);
-    const t = setTimeout(() => setLoading(false), 450);
-    return () => clearTimeout(t);
-  }, [range, from, to]);
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
@@ -52,47 +56,89 @@ function SummaryPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Summary</h1>
           <p className="text-sm text-muted-foreground">
             Showing data for{" "}
-            <span className="font-medium text-foreground">{RANGE_LABELS[range]}</span>
+            <span className="font-medium text-foreground">{RANGE_LABELS[search.range]}</span>
           </p>
         </div>
         <DateRangeFilter
-          range={range}
-          from={from}
-          to={to}
+          range={search.range}
+          from={search.from}
+          to={search.to}
           onChange={(next) => navigate({ search: () => next })}
         />
       </div>
 
-      {loading ? (
-        <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Card key={i} className="p-5">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="mt-3 h-8 w-32" />
-              </Card>
-            ))}
-          </div>
-          <Card className="flex h-[260px] items-center justify-center p-5">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading data…
-            </div>
-          </Card>
-        </>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <KpiCard label="New users" value={kpis.newUsers.value} icon={UserPlus} />
-            <KpiCard label="Active users" value={kpis.activeUsers.value} icon={Activity} />
-            <KpiCard label="Queries" value={kpis.queries.value} icon={MessageSquare} />
-            <KpiCard label="Payments" value={kpis.payments.value} icon={CreditCard} />
-          </div>
-
-          <TrendChart />
-          <TopUsersCard />
-        </>
-      )}
+      <Suspense fallback={<SummarySkeleton />}>
+        <SummaryContent range={search.range} from={search.from} to={search.to} />
+      </Suspense>
     </div>
+  );
+}
+
+function SummaryContent({
+  range,
+  from,
+  to,
+}: {
+  range: RangeKey;
+  from?: string;
+  to?: string;
+}) {
+  const { data } = useSuspenseQuery(summaryQuery(range, from, to));
+
+  return (
+    <>
+      {data.error && <DataErrorBanner message={data.error} />}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          label="New users"
+          value={data.kpis.newUsers.value}
+          delta={data.kpis.newUsers.delta}
+          icon={UserPlus}
+        />
+        <KpiCard
+          label="Active users"
+          value={data.kpis.activeUsers.value}
+          delta={data.kpis.activeUsers.delta}
+          icon={Activity}
+        />
+        <KpiCard
+          label="Queries"
+          value={data.kpis.queries.value}
+          delta={data.kpis.queries.delta}
+          icon={MessageSquare}
+        />
+        <KpiCard
+          label="Payments"
+          value={data.kpis.payments?.value ?? null}
+          delta={data.kpis.payments?.delta}
+          icon={CreditCard}
+        />
+      </div>
+
+      <TrendChart data={data.trend} />
+      <TopUsersCard users={data.topUsers} />
+    </>
+  );
+}
+
+function SummarySkeleton() {
+  return (
+    <>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i} className="p-5">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="mt-3 h-8 w-32" />
+          </Card>
+        ))}
+      </div>
+      <Card className="flex h-[260px] items-center justify-center p-5">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading data…
+        </div>
+      </Card>
+    </>
   );
 }
