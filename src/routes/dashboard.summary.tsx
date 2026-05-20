@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { fallback, zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
-import { CreditCard, Loader2, LogIn, MessageSquare, UserPlus } from "lucide-react";
+import { Activity, CreditCard, Loader2, MessageSquare, UserPlus } from "lucide-react";
 
 import { DateRangeFilter } from "@/components/dashboard/DateRangeFilter";
 import { KpiCard } from "@/components/dashboard/KpiCard";
+import { TopUsersCard } from "@/components/dashboard/TopUsersCard";
 import { TrendChart } from "@/components/dashboard/TrendChart";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -83,12 +84,13 @@ function SummaryPage() {
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <KpiCard label="New users" value={kpis.newUsers.value} icon={UserPlus} />
-            <KpiCard label="Login users" value={kpis.loginUsers.value} icon={LogIn} />
+            <KpiCard label="Active users" value={kpis.activeUsers.value} icon={Activity} />
             <KpiCard label="Queries" value={kpis.queries.value} icon={MessageSquare} />
             <KpiCard label="Payments" value={kpis.payments.value} icon={CreditCard} />
           </div>
 
           <TrendChart />
+          <TopUsersCard />
         </>
       )}
     </div>
