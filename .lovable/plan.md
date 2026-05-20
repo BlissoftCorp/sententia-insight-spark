@@ -1,93 +1,134 @@
-## Opción B — Allowlist de rangos públicos de Cloudflare
+# Opción D — Hospedar el dashboard en un VPS Contabo con IP fija
 
-El backend de Lovable corre en **Cloudflare Workers**. Cada request del dashboard a Postgres sale desde una IP perteneciente a los rangos públicos que Cloudflare publica en `https://www.cloudflare.com/ips/`. La idea es permitir SOLO esos rangos en `pg_hba.conf`, exigiendo además SSL + password. Postgres queda inalcanzable desde cualquier otra IP de internet.
+En vez de abrir Postgres a los rangos de Cloudflare (Opción B), sacamos el backend del dashboard de Cloudflare Workers y lo corremos en un VPS de Contabo con IP fija. El dev solo whitelistea **una IP** en `pg_hba.conf` y listo — la superficie expuesta es mínima.
 
 ---
 
-### Qué tiene que hacer el dev en el VPS (una sola vez)
+## Arquitectura objetivo
 
-**1. Asegurar que Postgres escucha en la interfaz pública con SSL obligatorio**
-
-En `postgresql.conf`:
-```
-listen_addresses = '*'
-ssl = on
-ssl_cert_file = '/etc/ssl/certs/postgres.crt'
-ssl_key_file  = '/etc/ssl/private/postgres.key'
-```
-(Si aún no hay cert, puede generar uno con Let's Encrypt o un self-signed; el cliente Postgres del Worker se configura para aceptarlo.)
-
-**2. Reemplazar la regla actual `35.195.94.243/32` en `pg_hba.conf` por los rangos de Cloudflare**
-
-Reemplazar la línea actual del usuario `sententia_user` por un bloque como este (IPv4 oficiales de Cloudflare a fecha de hoy):
-
-```
-# Cloudflare IPv4 ranges - https://www.cloudflare.com/ips-v4
-hostssl  sententia_db  sententia_user  173.245.48.0/20    scram-sha-256
-hostssl  sententia_db  sententia_user  103.21.244.0/22    scram-sha-256
-hostssl  sententia_db  sententia_user  103.22.200.0/22    scram-sha-256
-hostssl  sententia_db  sententia_user  103.31.4.0/22      scram-sha-256
-hostssl  sententia_db  sententia_user  141.101.64.0/18    scram-sha-256
-hostssl  sententia_db  sententia_user  108.162.192.0/18   scram-sha-256
-hostssl  sententia_db  sententia_user  190.93.240.0/20    scram-sha-256
-hostssl  sententia_db  sententia_user  188.114.96.0/20    scram-sha-256
-hostssl  sententia_db  sententia_user  197.234.240.0/22   scram-sha-256
-hostssl  sententia_db  sententia_user  198.41.128.0/17    scram-sha-256
-hostssl  sententia_db  sententia_user  162.158.0.0/15     scram-sha-256
-hostssl  sententia_db  sententia_user  104.16.0.0/13      scram-sha-256
-hostssl  sententia_db  sententia_user  104.24.0.0/14      scram-sha-256
-hostssl  sententia_db  sententia_user  172.64.0.0/13      scram-sha-256
-hostssl  sententia_db  sententia_user  131.0.72.0/22      scram-sha-256
+```text
+[ Navegador ]
+     │  HTTPS
+     ▼
+[ Cloudflare DNS + (opcional) proxy ]
+     │
+     ▼
+[ VPS Contabo — IP fija X.X.X.X ]
+  ├── Nginx (TLS, reverse proxy)
+  └── Node.js (Bun) corriendo el dashboard (SSR + server functions)
+     │  SSL, IP fija
+     ▼
+[ VPS Postgres — pg_hba allow X.X.X.X/32 ]
 ```
 
-Notas para el dev:
-- **`hostssl`** (no `host`) fuerza conexión cifrada.
-- **`scram-sha-256`** (no `md5`) — autenticación moderna.
-- Si el VPS también recibe tráfico IPv6, añadir los rangos de `https://www.cloudflare.com/ips-v6` con el mismo formato.
-- Mantener la regla local `host all all 127.0.0.1/32 ...` para administración desde el propio VPS.
+Postgres sigue cerrado al mundo: solo acepta `35.195.94.243/32` (la regla que ya existe) **más** la IP del nuevo VPS Contabo.
 
-**3. Recargar Postgres** (sin reiniciar):
+---
+
+## Qué hay que hacer (de punta a punta)
+
+### 1. Provisionar el VPS Contabo
+- Plan VPS S/M (suficiente para SSR + server functions de un dashboard interno).
+- Ubuntu 22.04 LTS, IPv4 fija (Contabo la da por defecto).
+- Anotar la IP pública → es la que se whitelistea.
+
+### 2. Hardening básico del VPS
+- Usuario no-root con sudo, SSH por clave, `PasswordAuthentication no`.
+- `ufw`: permitir solo `22/tcp` (SSH), `80/tcp`, `443/tcp`. Cerrar todo lo demás.
+- `unattended-upgrades` para parches de seguridad automáticos.
+- `fail2ban` con jail para SSH.
+
+### 3. Runtime de la app
+- Instalar Bun (o Node 20 LTS) + `git`.
+- Clonar el repo del dashboard.
+- Variables de entorno (`/etc/dashboard.env`, modo `600`):
+  - `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`, `PGSSLMODE=require`
+  - Secrets de Supabase Auth si aplica.
+- Build: `bun install && bun run build`.
+- Servicio systemd `dashboard.service` que arranca el servidor SSR en `127.0.0.1:3000` con `Restart=always`.
+
+### 4. Nginx + TLS al frente
+- Nginx como reverse proxy `https://dashboard.tu-dominio.com → 127.0.0.1:3000`.
+- TLS con Let's Encrypt (`certbot --nginx`), renovación automática.
+- Headers de seguridad (HSTS, `X-Frame-Options`, etc.).
+- (Opcional) Cloudflare proxy "naranja" delante para WAF/DDoS — el origen sigue siendo la IP de Contabo y Postgres sigue viendo SOLO la IP del VPS.
+
+### 5. Postgres del otro VPS
+Un único cambio en `pg_hba.conf`:
+```text
+hostssl  sententia_db  sententia_user  X.X.X.X/32   scram-sha-256
 ```
+(donde `X.X.X.X` es la IP de Contabo). Luego:
+```bash
 sudo systemctl reload postgresql
 ```
+Y en el firewall: abrir `5432/tcp` SOLO a `X.X.X.X/32`.
 
-**4. Endurecer el resto del perímetro**
-- Firewall (ufw/iptables): puerto `5432/tcp` abierto solo a esos mismos rangos (defensa en profundidad por si alguien edita `pg_hba` por error).
-- Password fuerte de `sententia_user` (rotarlo y enviárnoslo de nuevo).
-- Instalar **fail2ban** con jail para Postgres para frenar intentos de fuerza bruta dentro de los rangos permitidos.
-
-**5. Mantenimiento**
-- Los rangos de Cloudflare cambian muy raramente, pero conviene revisar `https://www.cloudflare.com/ips/` cada ~6 meses. Cloudflare publica un changelog; si añaden un rango nuevo, se agrega una línea más en `pg_hba.conf` y se hace `reload`.
+### 6. Migrar el dominio del dashboard
+- Apuntar `dashboard.tu-dominio.com` (DNS) al VPS Contabo.
+- Quitar el dominio del proyecto Lovable (o dejarlo solo para preview).
 
 ---
 
-### Qué hago yo en el lado Lovable (después del cambio del dev)
+## Qué cambia en el código del dashboard
 
-1. Confirmar que el cliente Postgres (`src/lib/db.server.ts`) está usando `ssl: { rejectUnauthorized: false }` o `require` según el cert que use el VPS — ya está preparado, solo verifico.
-2. Si rotan el password, lo actualizo en los secretos de Lovable Cloud (`DATABASE_URL` o las vars individuales).
-3. Refrescar el dashboard y comprobar que el banner "Could not load live data" desaparece y los KPIs y la tabla Top users muestran datos reales.
-4. Hacer un par de queries de humo (rango Today / Last 7 days) para validar latencia y que el delta vs. período anterior calcula bien.
+**Casi nada.** El código actual (`src/lib/db.server.ts`, server functions en `src/lib/analytics.functions.ts`) ya funciona en Node/Bun igual que en Cloudflare Workers. Lo único a tocar:
 
----
-
-### Riesgos aceptados con esta opción
-
-- **Tamaño de la superficie**: cualquiera con una IP de Cloudflare (es decir, cualquier sitio detrás de Cloudflare en el mundo) puede *intentar* autenticar contra Postgres. Mitigación: SSL obligatorio + `scram-sha-256` + password fuerte + fail2ban.
-- **Mantenimiento manual**: si Cloudflare publica un rango nuevo y el dev no lo añade, esa franja del Worker dejará de conectar (síntoma: errores intermitentes solo desde ciertas regiones).
-
-Si en algún momento el dev quiere eliminar esa superficie por completo, podemos migrar luego a Opción C (API gateway en el propio VPS) sin tocar el código del dashboard — solo cambiaría la URL base de las server functions.
+1. **Adaptador de servidor**: hoy compila para Cloudflare Workers (`wrangler.jsonc`). Hay que cambiar a un build Node/Bun estándar (servidor HTTP de TanStack Start sobre Node).
+2. **Quitar dependencias específicas de Workers** si las hubiera (no se detectan en el código actual).
+3. **`db.server.ts`** ya está OK (`postgres` package, SSL con `rejectUnauthorized: false`).
+4. **CI/Deploy**: pipeline para hacer pull + build + `systemctl restart dashboard` en el VPS (puede ser un `git pull` manual al inicio y automatizar después con GitHub Actions + SSH).
 
 ---
 
-### Mensaje listo para enviarle al dev
+## Comparación rápida con Opción B
 
-> Hola, en Lovable vamos a llamar a Postgres del VPS desde Cloudflare Workers, así que las IPs de salida no son fijas. Para abrirlo de forma segura te pido:
+| | Opción B (Cloudflare Workers + allowlist de rangos) | Opción D (VPS Contabo + IP fija) |
+|---|---|---|
+| IPs a whitelistear | ~15 rangos CIDR de Cloudflare | **1 IP /32** |
+| Superficie de ataque a Postgres | Cualquier sitio detrás de Cloudflare | Solo ese VPS |
+| Mantenimiento de IPs | Revisar rangos Cloudflare cada ~6 meses | Cero (IP fija de Contabo) |
+| Cambios en el código | Ninguno | Cambiar adaptador a Node, dejar de usar Workers |
+| Hosting | Lovable (incluido) | Contabo (~5–10 €/mes) + tiempo de ops |
+| Escalado/CDN | Automático global | Manual; Cloudflare delante si se quiere |
+| TLS / dominio | Lovable lo gestiona | Certbot + Nginx, tú lo gestionas |
+
+---
+
+## Riesgos / cosas a tener en cuenta
+
+- **Ops**: ahora tú (o el dev) mantenéis dos VPS en vez de uno. Backups, monitoreo (uptime, logs), parches, renovación de certs.
+- **Single point of failure**: si el VPS Contabo cae, el dashboard cae. Mitigable con monitoring (UptimeRobot, Better Stack) y un runbook simple de restart.
+- **Deploy**: pierdes el "push to deploy" de Lovable para producción. Lovable sigue siendo perfecto para iterar en preview; producción se despliega al VPS con un script.
+- **Coste**: ~5–10 €/mes extra de Contabo.
+- **Latencia**: VPS único en una región vs. edge global de Workers. Para un dashboard interno con pocos usuarios es irrelevante.
+
+---
+
+## Mensaje listo para el dev
+
+> Hola, cambio de plan respecto al mensaje anterior de los rangos Cloudflare. En vez de eso, voy a hospedar el dashboard en un VPS Contabo con IP fija (`X.X.X.X`, te la confirmo cuando lo provisione). Lo único que necesito de tu lado en el VPS de Postgres es:
 >
-> 1. En `postgresql.conf`: `listen_addresses = '*'` y `ssl = on` con un certificado válido.
-> 2. En `pg_hba.conf`: reemplazar la regla actual de `35.195.94.243/32` por los rangos públicos de Cloudflare (`https://www.cloudflare.com/ips/`), todos con `hostssl ... scram-sha-256`. Te paso el bloque exacto a pegar (ver arriba). Si usas IPv6, añade también los rangos v6.
-> 3. `sudo systemctl reload postgresql`.
-> 4. Firewall del VPS: dejar `5432/tcp` abierto solo a esos mismos rangos.
-> 5. Rotar el password de `sententia_user` y enviármelo por canal seguro.
-> 6. Instalar `fail2ban` con jail para Postgres.
+> 1. En `pg_hba.conf`, **en vez de** los rangos Cloudflare que te pasé antes, añadir una sola línea:
+>    ```
+>    hostssl  sententia_db  sententia_user  X.X.X.X/32   scram-sha-256
+>    ```
+> 2. `sudo systemctl reload postgresql`.
+> 3. Firewall (ufw/iptables): abrir `5432/tcp` solo a `X.X.X.X/32`.
+> 4. Confirmar que `ssl = on` en `postgresql.conf` y que `sententia_user` tiene password fuerte (rotarlo y enviármelo por canal seguro).
 >
-> Una vez hecho, yo refresco el dashboard y validamos que los datos cargan.
+> Con eso Postgres queda expuesto a una sola IP del mundo, que es la mía. Nada más que cambiar en tu lado.
+
+---
+
+## Plan de implementación (orden recomendado)
+
+1. **Tú**: contratar VPS Contabo, anotar IP, pasarle al dev los pasos del mensaje de arriba.
+2. **Dev**: añade la línea en `pg_hba.conf`, recarga Postgres, ajusta firewall, rota password.
+3. **Yo (en Lovable)**: ajustar el build del proyecto para que pueda servirse desde Node/Bun (quitar adaptador Workers, añadir entrypoint Node de TanStack Start). Validar localmente que `bun run build && bun run start` levanta el SSR.
+4. **Tú/Dev**: provisionar el VPS Contabo (hardening, Bun, Nginx, certbot, systemd) — te puedo dejar un script de bootstrap.
+5. **Deploy inicial**: clonar repo, `bun install`, `bun run build`, `systemctl start dashboard`, apuntar DNS.
+6. **Validación**: cargar `https://dashboard.tu-dominio.com/dashboard/summary`, confirmar que desaparece el banner "Could not load live data" y que KPIs + Top users muestran datos reales.
+7. **Limpieza**: desactivar/retirar el dominio de producción en Lovable (preview sigue útil para iterar).
+
+¿Avanzo con el paso 3 (adaptar el build para Node/Bun) en cuanto me confirmes que quieres tirar por esta ruta?
