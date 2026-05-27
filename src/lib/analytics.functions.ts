@@ -292,11 +292,13 @@ export const getUserDetail = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<UserDetailResponse> => {
     try {
       const { sql } = await import("./db.server");
-      const to = new Date();
-      to.setHours(23, 59, 59, 999);
-      const from = new Date(to);
-      from.setDate(from.getDate() - (data.days - 1));
-      from.setHours(0, 0, 0, 0);
+      const tz = getAppTimezone();
+      // Anchor "today" to the configured app timezone, then go back N-1 days.
+      const todayRange = resolveRange("today", undefined, undefined, tz);
+      const to = todayRange.to;
+      const from = new Date(
+        todayRange.from.getTime() - (data.days - 1) * 86_400_000,
+      );
 
       const [userRow, lastSession, seriesRows] = await Promise.all([
         sql<{ id: string; name: string | null; email: string; created_at: Date }[]>`
@@ -315,15 +317,15 @@ export const getUserDetail = createServerFn({ method: "POST" })
         sql<{ d: Date; c: string }[]>`
           WITH days AS (
             SELECT generate_series(
-              date_trunc('day', ${from}::timestamptz),
-              date_trunc('day', ${to}::timestamptz),
+              date_trunc('day', (${from}::timestamptz) AT TIME ZONE ${tz}),
+              date_trunc('day', (${to}::timestamptz) AT TIME ZONE ${tz}),
               interval '1 day'
             )::date AS d
           )
           SELECT days.d AS d, COALESCE(q.c, 0)::text AS c
           FROM days
           LEFT JOIN (
-            SELECT date_trunc('day', m.created_at)::date AS d, COUNT(*) AS c
+            SELECT date_trunc('day', m.created_at AT TIME ZONE ${tz})::date AS d, COUNT(*) AS c
             FROM messages m JOIN conversations c ON c.id = m.conversation_id
             WHERE m.role='user' AND c.user_id::text = ${data.userId}
               AND m.created_at BETWEEN ${from} AND ${to}
