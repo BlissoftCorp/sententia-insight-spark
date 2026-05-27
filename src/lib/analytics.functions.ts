@@ -104,7 +104,8 @@ export const getSummary = createServerFn({ method: "POST" })
 
     try {
       const { sql } = await import("./db.server");
-      const { from, to } = resolveRange(data.range as never, data.from, data.to);
+      const tz = getAppTimezone();
+      const { from, to } = resolveRange(data.range as never, data.from, data.to, tz);
       const { prevFrom, prevTo } = shiftRange(from, to);
 
       const [
@@ -136,8 +137,8 @@ export const getSummary = createServerFn({ method: "POST" })
         >`
           WITH days AS (
             SELECT generate_series(
-              date_trunc('day', ${from}::timestamptz),
-              date_trunc('day', ${to}::timestamptz),
+              date_trunc('day', (${from}::timestamptz) AT TIME ZONE ${tz}),
+              date_trunc('day', (${to}::timestamptz) AT TIME ZONE ${tz}),
               interval '1 day'
             )::date AS d
           )
@@ -148,17 +149,17 @@ export const getSummary = createServerFn({ method: "POST" })
             COALESCE(au.c, 0)::text AS active_users
           FROM days
           LEFT JOIN (
-            SELECT date_trunc('day', created_at)::date AS d, COUNT(*) AS c
+            SELECT date_trunc('day', created_at AT TIME ZONE ${tz})::date AS d, COUNT(*) AS c
             FROM users WHERE created_at BETWEEN ${from} AND ${to}
             GROUP BY 1
           ) nu ON nu.d = days.d
           LEFT JOIN (
-            SELECT date_trunc('day', created_at)::date AS d, COUNT(*) AS c
+            SELECT date_trunc('day', created_at AT TIME ZONE ${tz})::date AS d, COUNT(*) AS c
             FROM messages WHERE role='user' AND created_at BETWEEN ${from} AND ${to}
             GROUP BY 1
           ) q ON q.d = days.d
           LEFT JOIN (
-            SELECT date_trunc('day', m.created_at)::date AS d, COUNT(DISTINCT c.user_id) AS c
+            SELECT date_trunc('day', m.created_at AT TIME ZONE ${tz})::date AS d, COUNT(DISTINCT c.user_id) AS c
             FROM messages m JOIN conversations c ON c.id = m.conversation_id
             WHERE m.role='user' AND m.created_at BETWEEN ${from} AND ${to}
             GROUP BY 1
