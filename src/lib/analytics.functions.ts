@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { resolveRange } from "./analytics-range";
+import { getAppTimezone, resolveRange } from "./analytics-range";
 
 const rangeSchema = z.object({
   range: z.enum(["today", "yesterday", "last7", "thisMonth", "lastMonth", "custom"]),
@@ -69,7 +69,7 @@ export type UserDetailResponse = {
 };
 
 function fmtLabel(d: Date) {
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
 function shiftRange(from: Date, to: Date): { prevFrom: Date; prevTo: Date } {
@@ -104,7 +104,8 @@ export const getSummary = createServerFn({ method: "POST" })
 
     try {
       const { sql } = await import("./db.server");
-      const { from, to } = resolveRange(data.range as never, data.from, data.to);
+      const tz = getAppTimezone();
+      const { from, to } = resolveRange(data.range as never, data.from, data.to, tz);
       const { prevFrom, prevTo } = shiftRange(from, to);
 
       const [
@@ -136,8 +137,8 @@ export const getSummary = createServerFn({ method: "POST" })
         >`
           WITH days AS (
             SELECT generate_series(
-              date_trunc('day', ${from}::timestamptz),
-              date_trunc('day', ${to}::timestamptz),
+              date_trunc('day', (${from}::timestamptz) AT TIME ZONE ${tz}),
+              date_trunc('day', (${to}::timestamptz) AT TIME ZONE ${tz}),
               interval '1 day'
             )::date AS d
           )
@@ -148,17 +149,17 @@ export const getSummary = createServerFn({ method: "POST" })
             COALESCE(au.c, 0)::text AS active_users
           FROM days
           LEFT JOIN (
-            SELECT date_trunc('day', created_at)::date AS d, COUNT(*) AS c
+            SELECT date_trunc('day', created_at AT TIME ZONE ${tz})::date AS d, COUNT(*) AS c
             FROM users WHERE created_at BETWEEN ${from} AND ${to}
             GROUP BY 1
           ) nu ON nu.d = days.d
           LEFT JOIN (
-            SELECT date_trunc('day', created_at)::date AS d, COUNT(*) AS c
+            SELECT date_trunc('day', created_at AT TIME ZONE ${tz})::date AS d, COUNT(*) AS c
             FROM messages WHERE role='user' AND created_at BETWEEN ${from} AND ${to}
             GROUP BY 1
           ) q ON q.d = days.d
           LEFT JOIN (
-            SELECT date_trunc('day', m.created_at)::date AS d, COUNT(DISTINCT c.user_id) AS c
+            SELECT date_trunc('day', m.created_at AT TIME ZONE ${tz})::date AS d, COUNT(DISTINCT c.user_id) AS c
             FROM messages m JOIN conversations c ON c.id = m.conversation_id
             WHERE m.role='user' AND m.created_at BETWEEN ${from} AND ${to}
             GROUP BY 1
@@ -291,11 +292,13 @@ export const getUserDetail = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<UserDetailResponse> => {
     try {
       const { sql } = await import("./db.server");
-      const to = new Date();
-      to.setHours(23, 59, 59, 999);
-      const from = new Date(to);
-      from.setDate(from.getDate() - (data.days - 1));
-      from.setHours(0, 0, 0, 0);
+      const tz = getAppTimezone();
+      // Anchor "today" to the configured app timezone, then go back N-1 days.
+      const todayRange = resolveRange("today", undefined, undefined, tz);
+      const to = todayRange.to;
+      const from = new Date(
+        todayRange.from.getTime() - (data.days - 1) * 86_400_000,
+      );
 
       const [userRow, lastSession, seriesRows] = await Promise.all([
         sql<{ id: string; name: string | null; email: string; created_at: Date }[]>`
@@ -314,15 +317,15 @@ export const getUserDetail = createServerFn({ method: "POST" })
         sql<{ d: Date; c: string }[]>`
           WITH days AS (
             SELECT generate_series(
-              date_trunc('day', ${from}::timestamptz),
-              date_trunc('day', ${to}::timestamptz),
+              date_trunc('day', (${from}::timestamptz) AT TIME ZONE ${tz}),
+              date_trunc('day', (${to}::timestamptz) AT TIME ZONE ${tz}),
               interval '1 day'
             )::date AS d
           )
           SELECT days.d AS d, COALESCE(q.c, 0)::text AS c
           FROM days
           LEFT JOIN (
-            SELECT date_trunc('day', m.created_at)::date AS d, COUNT(*) AS c
+            SELECT date_trunc('day', m.created_at AT TIME ZONE ${tz})::date AS d, COUNT(*) AS c
             FROM messages m JOIN conversations c ON c.id = m.conversation_id
             WHERE m.role='user' AND c.user_id::text = ${data.userId}
               AND m.created_at BETWEEN ${from} AND ${to}
