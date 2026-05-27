@@ -107,6 +107,11 @@ export const getSummary = createServerFn({ method: "POST" })
       const tz = getAppTimezone();
       const { from, to } = resolveRange(data.range as never, data.from, data.to, tz);
       const { prevFrom, prevTo } = shiftRange(from, to);
+      // Trend charts always show the last 7 days (including today),
+      // independent of the KPI date range.
+      const trendRange = resolveRange("last7", undefined, undefined, tz);
+      const trendFrom = trendRange.from;
+      const trendTo = trendRange.to;
 
       const [
         newUsersCurr,
