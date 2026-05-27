@@ -28,19 +28,19 @@ type Metric = {
 const METRICS: Metric[] = [
   {
     key: "newUsers",
-    label: "New users",
-    description: "Daily sign-ups in selected range",
+    label: "New users last 7 days",
+    description: "Daily sign-ups including today",
     colorVar: "var(--chart-1)",
   },
   {
     key: "queries",
-    label: "Queries",
-    description: "AI queries per day in selected range",
+    label: "Queries last 7 days",
+    description: "AI queries per day including today",
     colorVar: "var(--chart-2)",
   },
   {
     key: "activeUsers",
-    label: "Active users",
+    label: "Active users last 7 days",
     description: "Distinct users with queries per day",
     colorVar: "var(--chart-3)",
   },

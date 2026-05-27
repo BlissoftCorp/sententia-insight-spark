@@ -107,6 +107,11 @@ export const getSummary = createServerFn({ method: "POST" })
       const tz = getAppTimezone();
       const { from, to } = resolveRange(data.range as never, data.from, data.to, tz);
       const { prevFrom, prevTo } = shiftRange(from, to);
+      // Trend charts always show the last 7 days (including today),
+      // independent of the KPI date range.
+      const trendRange = resolveRange("last7", undefined, undefined, tz);
+      const trendFrom = trendRange.from;
+      const trendTo = trendRange.to;
 
       const [
         newUsersCurr,
@@ -137,8 +142,8 @@ export const getSummary = createServerFn({ method: "POST" })
         >`
           WITH days AS (
             SELECT generate_series(
-              date_trunc('day', (${from}::timestamptz) AT TIME ZONE ${tz}),
-              date_trunc('day', (${to}::timestamptz) AT TIME ZONE ${tz}),
+              date_trunc('day', (${trendFrom}::timestamptz) AT TIME ZONE ${tz}),
+              date_trunc('day', (${trendTo}::timestamptz) AT TIME ZONE ${tz}),
               interval '1 day'
             )::date AS d
           )
@@ -150,18 +155,18 @@ export const getSummary = createServerFn({ method: "POST" })
           FROM days
           LEFT JOIN (
             SELECT date_trunc('day', created_at AT TIME ZONE ${tz})::date AS d, COUNT(*) AS c
-            FROM users WHERE created_at BETWEEN ${from} AND ${to}
+            FROM users WHERE created_at BETWEEN ${trendFrom} AND ${trendTo}
             GROUP BY 1
           ) nu ON nu.d = days.d
           LEFT JOIN (
             SELECT date_trunc('day', created_at AT TIME ZONE ${tz})::date AS d, COUNT(*) AS c
-            FROM messages WHERE role='user' AND created_at BETWEEN ${from} AND ${to}
+            FROM messages WHERE role='user' AND created_at BETWEEN ${trendFrom} AND ${trendTo}
             GROUP BY 1
           ) q ON q.d = days.d
           LEFT JOIN (
             SELECT date_trunc('day', m.created_at AT TIME ZONE ${tz})::date AS d, COUNT(DISTINCT c.user_id) AS c
             FROM messages m JOIN conversations c ON c.id = m.conversation_id
-            WHERE m.role='user' AND m.created_at BETWEEN ${from} AND ${to}
+            WHERE m.role='user' AND m.created_at BETWEEN ${trendFrom} AND ${trendTo}
             GROUP BY 1
           ) au ON au.d = days.d
           ORDER BY days.d
