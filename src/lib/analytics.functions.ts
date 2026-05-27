@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { resolveRange } from "./analytics-range";
+import { getAppTimezone, resolveRange } from "./analytics-range";
 
 const rangeSchema = z.object({
   range: z.enum(["today", "yesterday", "last7", "thisMonth", "lastMonth", "custom"]),
