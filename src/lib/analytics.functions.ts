@@ -69,7 +69,7 @@ export type UserDetailResponse = {
 };
 
 function fmtLabel(d: Date) {
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
 function shiftRange(from: Date, to: Date): { prevFrom: Date; prevTo: Date } {
