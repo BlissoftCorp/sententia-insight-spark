@@ -383,3 +383,83 @@ export const getUserDetail = createServerFn({ method: "POST" })
       };
     }
   });
+
+export type TrackingResponse = {
+  totalUsers: number;
+  zeroQueries: number;
+  atLeastOne: number;
+  oneToFive: number;
+  moreThanFive: number;
+  signupOnlyNoQueries: number;
+  signupOnlyWithQueries: number;
+  error: string | null;
+};
+
+export const getTracking = createServerFn({ method: "GET" }).handler(
+  async (): Promise<TrackingResponse> => {
+    const empty: TrackingResponse = {
+      totalUsers: 0,
+      zeroQueries: 0,
+      atLeastOne: 0,
+      oneToFive: 0,
+      moreThanFive: 0,
+      signupOnlyNoQueries: 0,
+      signupOnlyWithQueries: 0,
+      error: null,
+    };
+    try {
+      const { sql } = await import("./db.server");
+      const tz = getAppTimezone();
+      const rows = await sql<
+        {
+          total_users: string;
+          zero_queries: string;
+          at_least_one: string;
+          one_to_five: string;
+          more_than_five: string;
+          signup_only_no_queries: string;
+          signup_only_with_queries: string;
+        }[]
+      >`
+        WITH user_stats AS (
+          SELECT
+            u.id,
+            u.created_at,
+            COALESCE(COUNT(m.*) FILTER (WHERE m.role = 'user'), 0) AS queries,
+            MAX(m.created_at) FILTER (WHERE m.role = 'user') AS last_query_at
+          FROM users u
+          LEFT JOIN conversations c ON c.user_id = u.id
+          LEFT JOIN messages m ON m.conversation_id = c.id
+          GROUP BY u.id, u.created_at
+        )
+        SELECT
+          COUNT(*)::text AS total_users,
+          COUNT(*) FILTER (WHERE queries = 0)::text AS zero_queries,
+          COUNT(*) FILTER (WHERE queries >= 1)::text AS at_least_one,
+          COUNT(*) FILTER (WHERE queries BETWEEN 1 AND 5)::text AS one_to_five,
+          COUNT(*) FILTER (WHERE queries > 5)::text AS more_than_five,
+          COUNT(*) FILTER (WHERE queries = 0)::text AS signup_only_no_queries,
+          COUNT(*) FILTER (
+            WHERE queries >= 1
+              AND (last_query_at AT TIME ZONE ${tz})::date
+                = (created_at AT TIME ZONE ${tz})::date
+          )::text AS signup_only_with_queries
+        FROM user_stats
+      `;
+      const r = rows[0];
+      return {
+        totalUsers: Number(r?.total_users ?? 0),
+        zeroQueries: Number(r?.zero_queries ?? 0),
+        atLeastOne: Number(r?.at_least_one ?? 0),
+        oneToFive: Number(r?.one_to_five ?? 0),
+        moreThanFive: Number(r?.more_than_five ?? 0),
+        signupOnlyNoQueries: Number(r?.signup_only_no_queries ?? 0),
+        signupOnlyWithQueries: Number(r?.signup_only_with_queries ?? 0),
+        error: null,
+      };
+    } catch (e) {
+      console.error("getTracking failed:", e);
+      return { ...empty, error: (e as Error).message };
+    }
+  },
+);
