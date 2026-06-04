@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { CreditCard, LayoutDashboard, LogOut, Users } from "lucide-react";
+import { Activity, CreditCard, LayoutDashboard, LogOut, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -19,6 +19,7 @@ import logo from "@/assets/sententia-logo.png";
 const items = [
   { title: "Summary", url: "/dashboard/summary", icon: LayoutDashboard },
   { title: "Users", url: "/dashboard/users", icon: Users },
+  { title: "Tracking", url: "/dashboard/tracking", icon: Activity },
   { title: "Payments", url: "/dashboard/payments", icon: CreditCard },
 ] as const;
 

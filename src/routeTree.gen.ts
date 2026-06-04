@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardUsersRouteImport } from './routes/dashboard.users'
+import { Route as DashboardTrackingRouteImport } from './routes/dashboard.tracking'
 import { Route as DashboardSummaryRouteImport } from './routes/dashboard.summary'
 import { Route as DashboardPaymentsRouteImport } from './routes/dashboard.payments'
 import { Route as DashboardUsersUserIdRouteImport } from './routes/dashboard.users_.$userId'
@@ -29,6 +30,11 @@ const IndexRoute = IndexRouteImport.update({
 const DashboardUsersRoute = DashboardUsersRouteImport.update({
   id: '/users',
   path: '/users',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardTrackingRoute = DashboardTrackingRouteImport.update({
+  id: '/tracking',
+  path: '/tracking',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardSummaryRoute = DashboardSummaryRouteImport.update({
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRouteWithChildren
   '/dashboard/payments': typeof DashboardPaymentsRoute
   '/dashboard/summary': typeof DashboardSummaryRoute
+  '/dashboard/tracking': typeof DashboardTrackingRoute
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/users/$userId': typeof DashboardUsersUserIdRoute
 }
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRouteWithChildren
   '/dashboard/payments': typeof DashboardPaymentsRoute
   '/dashboard/summary': typeof DashboardSummaryRoute
+  '/dashboard/tracking': typeof DashboardTrackingRoute
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/users/$userId': typeof DashboardUsersUserIdRoute
 }
@@ -69,6 +77,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRouteWithChildren
   '/dashboard/payments': typeof DashboardPaymentsRoute
   '/dashboard/summary': typeof DashboardSummaryRoute
+  '/dashboard/tracking': typeof DashboardTrackingRoute
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/users_/$userId': typeof DashboardUsersUserIdRoute
 }
@@ -79,6 +88,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/dashboard/payments'
     | '/dashboard/summary'
+    | '/dashboard/tracking'
     | '/dashboard/users'
     | '/dashboard/users/$userId'
   fileRoutesByTo: FileRoutesByTo
@@ -87,6 +97,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/dashboard/payments'
     | '/dashboard/summary'
+    | '/dashboard/tracking'
     | '/dashboard/users'
     | '/dashboard/users/$userId'
   id:
@@ -95,6 +106,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/dashboard/payments'
     | '/dashboard/summary'
+    | '/dashboard/tracking'
     | '/dashboard/users'
     | '/dashboard/users_/$userId'
   fileRoutesById: FileRoutesById
@@ -127,6 +139,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardUsersRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/tracking': {
+      id: '/dashboard/tracking'
+      path: '/tracking'
+      fullPath: '/dashboard/tracking'
+      preLoaderRoute: typeof DashboardTrackingRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/summary': {
       id: '/dashboard/summary'
       path: '/summary'
@@ -154,6 +173,7 @@ declare module '@tanstack/react-router' {
 interface DashboardRouteChildren {
   DashboardPaymentsRoute: typeof DashboardPaymentsRoute
   DashboardSummaryRoute: typeof DashboardSummaryRoute
+  DashboardTrackingRoute: typeof DashboardTrackingRoute
   DashboardUsersRoute: typeof DashboardUsersRoute
   DashboardUsersUserIdRoute: typeof DashboardUsersUserIdRoute
 }
@@ -161,6 +181,7 @@ interface DashboardRouteChildren {
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardPaymentsRoute: DashboardPaymentsRoute,
   DashboardSummaryRoute: DashboardSummaryRoute,
+  DashboardTrackingRoute: DashboardTrackingRoute,
   DashboardUsersRoute: DashboardUsersRoute,
   DashboardUsersUserIdRoute: DashboardUsersUserIdRoute,
 }
