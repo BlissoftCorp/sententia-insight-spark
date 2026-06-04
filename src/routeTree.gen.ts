@@ -15,6 +15,7 @@ import { Route as DashboardUsersRouteImport } from './routes/dashboard.users'
 import { Route as DashboardTrackingRouteImport } from './routes/dashboard.tracking'
 import { Route as DashboardSummaryRouteImport } from './routes/dashboard.summary'
 import { Route as DashboardPaymentsRouteImport } from './routes/dashboard.payments'
+import { Route as DashboardTrackingRouteImport } from './routes/dashboard.tracking'
 import { Route as DashboardUsersUserIdRouteImport } from './routes/dashboard.users_.$userId'
 
 const DashboardRoute = DashboardRouteImport.update({
@@ -45,6 +46,11 @@ const DashboardSummaryRoute = DashboardSummaryRouteImport.update({
 const DashboardPaymentsRoute = DashboardPaymentsRouteImport.update({
   id: '/payments',
   path: '/payments',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardTrackingRoute = DashboardTrackingRouteImport.update({
+  id: '/tracking',
+  path: '/tracking',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardUsersUserIdRoute = DashboardUsersUserIdRouteImport.update({
