@@ -4,6 +4,7 @@ export type RangeKey =
   | "today"
   | "yesterday"
   | "last7"
+  | "last30"
   | "thisMonth"
   | "lastMonth"
   | "allTime"
