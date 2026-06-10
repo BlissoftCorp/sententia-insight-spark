@@ -14,6 +14,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { SummaryResponse } from "@/lib/analytics.functions";
 
 type TrendPoint = SummaryResponse["trend"][number];
@@ -21,6 +22,7 @@ type TrendPoint = SummaryResponse["trend"][number];
 type Metric = {
   key: "newUsers" | "queries" | "activeUsers";
   label: string;
+  label30: string;
   description: string;
   colorVar: string;
 };
@@ -29,22 +31,27 @@ const METRICS: Metric[] = [
   {
     key: "newUsers",
     label: "New users last 7 days",
+    label30: "New users last 30 days",
     description: "Daily sign-ups including today",
     colorVar: "var(--chart-1)",
   },
   {
     key: "queries",
     label: "Queries last 7 days",
+    label30: "Queries last 30 days",
     description: "AI queries per day including today",
     colorVar: "var(--chart-2)",
   },
   {
     key: "activeUsers",
     label: "Active users last 7 days",
+    label30: "Active users last 30 days",
     description: "Distinct users with queries per day",
     colorVar: "var(--chart-3)",
   },
 ];
+
+export type TrendRange = "last7" | "last30";
 
 export function TrendChart({ data }: { data: TrendPoint[] }) {
   return (
