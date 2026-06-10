@@ -43,7 +43,7 @@ function formatDateTime(iso: string | null) {
   return format(new Date(iso), "d/M/yyyy HH:mm:ss");
 }
 
-type SortKey = "name" | "email" | "queries" | "tokens" | "lastSession" | "createdAt";
+type SortKey = "queries" | "tokens" | "lastSession" | "createdAt";
 type SortDir = "asc" | "desc";
 
 function UsersPage() {
@@ -166,12 +166,8 @@ function UsersContent() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>
-                <SortHeader label="Name" sortKey="name" {...sortProps} />
-              </TableHead>
-              <TableHead>
-                <SortHeader label="Email" sortKey="email" {...sortProps} />
-              </TableHead>
+              <TableHead className="text-xs font-medium text-muted-foreground">Name</TableHead>
+              <TableHead className="text-xs font-medium text-muted-foreground">Email</TableHead>
               <TableHead className="text-right">
                 <SortHeader label="Queries" sortKey="queries" align="right" {...sortProps} />
               </TableHead>
