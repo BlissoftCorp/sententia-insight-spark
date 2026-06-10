@@ -9,6 +9,7 @@ import {
   Sparkles,
   UserMinus,
   UserCheck,
+  UserPlus,
   Loader2,
 } from "lucide-react";
 
@@ -125,7 +126,7 @@ function TrackingContent() {
         <h2 className="text-sm font-medium text-muted-foreground">
           Retención post-registro
         </h2>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           <TrackingKpi
             label="Se registraron y no volvieron (sin consultas)"
             description="Crearon la cuenta y nunca consultaron"
@@ -139,6 +140,13 @@ function TrackingContent() {
             value={data.signupOnlyWithQueries}
             total={total}
             icon={UserCheck}
+          />
+          <TrackingKpi
+            label="Volvieron otro día a consultar"
+            description="Consultaron en un día distinto al de registro"
+            value={data.returnedDifferentDay}
+            total={total}
+            icon={UserPlus}
           />
         </div>
       </section>

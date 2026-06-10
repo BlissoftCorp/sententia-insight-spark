@@ -392,6 +392,7 @@ export type TrackingResponse = {
   moreThanFive: number;
   signupOnlyNoQueries: number;
   signupOnlyWithQueries: number;
+  returnedDifferentDay: number;
   error: string | null;
 };
 
@@ -405,6 +406,7 @@ export const getTracking = createServerFn({ method: "GET" }).handler(
       moreThanFive: 0,
       signupOnlyNoQueries: 0,
       signupOnlyWithQueries: 0,
+      returnedDifferentDay: 0,
       error: null,
     };
     try {
@@ -419,6 +421,7 @@ export const getTracking = createServerFn({ method: "GET" }).handler(
           more_than_five: string;
           signup_only_no_queries: string;
           signup_only_with_queries: string;
+          returned_different_day: string;
         }[]
       >`
         WITH user_stats AS (
@@ -426,7 +429,11 @@ export const getTracking = createServerFn({ method: "GET" }).handler(
             u.id,
             u.created_at,
             COALESCE(COUNT(m.*) FILTER (WHERE m.role = 'user'), 0) AS queries,
-            MAX(m.created_at) FILTER (WHERE m.role = 'user') AS last_query_at
+            MAX(m.created_at) FILTER (WHERE m.role = 'user') AS last_query_at,
+            COUNT(DISTINCT (m.created_at AT TIME ZONE ${tz})::date)
+              FILTER (WHERE m.role = 'user'
+                AND (m.created_at AT TIME ZONE ${tz})::date
+                  <> (u.created_at AT TIME ZONE ${tz})::date) AS other_day_count
           FROM users u
           LEFT JOIN conversations c ON c.user_id = u.id
           LEFT JOIN messages m ON m.conversation_id = c.id
@@ -443,7 +450,8 @@ export const getTracking = createServerFn({ method: "GET" }).handler(
             WHERE queries >= 1
               AND (last_query_at AT TIME ZONE ${tz})::date
                 = (created_at AT TIME ZONE ${tz})::date
-          )::text AS signup_only_with_queries
+          )::text AS signup_only_with_queries,
+          COUNT(*) FILTER (WHERE other_day_count > 0)::text AS returned_different_day
         FROM user_stats
       `;
       const r = rows[0];
@@ -455,6 +463,7 @@ export const getTracking = createServerFn({ method: "GET" }).handler(
         moreThanFive: Number(r?.more_than_five ?? 0),
         signupOnlyNoQueries: Number(r?.signup_only_no_queries ?? 0),
         signupOnlyWithQueries: Number(r?.signup_only_with_queries ?? 0),
+        returnedDifferentDay: Number(r?.returned_different_day ?? 0),
         error: null,
       };
     } catch (e) {
