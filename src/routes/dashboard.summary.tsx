@@ -47,8 +47,15 @@ export const Route = createFileRoute("/dashboard/summary")({
 });
 
 function SummaryPage() {
-  const search = Route.useSearch() as { range: RangeKey; from?: string; to?: string };
+  const search = Route.useSearch() as {
+    range: RangeKey;
+    from?: string;
+    to?: string;
+    trendRange?: TrendRange;
+  };
   const navigate = useNavigate({ from: "/dashboard/summary" });
+
+  const trendRange = search.trendRange ?? "last7";
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
@@ -69,7 +76,15 @@ function SummaryPage() {
       </div>
 
       <Suspense fallback={<SummarySkeleton />}>
-        <SummaryContent range={search.range} from={search.from} to={search.to} />
+        <SummaryContent
+          range={search.range}
+          from={search.from}
+          to={search.to}
+          trendRange={trendRange}
+          onTrendRangeChange={(next) =>
+            navigate({ search: (prev) => ({ ...prev, trendRange: next }) })
+          }
+        />
       </Suspense>
     </div>
   );
