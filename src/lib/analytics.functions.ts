@@ -87,7 +87,7 @@ function pctDelta(curr: number, prev: number): number | null {
 }
 
 export const getSummary = createServerFn({ method: "POST" })
-  .inputValidator((data: { range: string; from?: string; to?: string }) =>
+  .inputValidator((data: { range: string; from?: string; to?: string; trendRange?: string }) =>
     rangeSchema.parse(data),
   )
   .handler(async ({ data }): Promise<SummaryResponse> => {
