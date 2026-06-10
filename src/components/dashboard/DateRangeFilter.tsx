@@ -16,7 +16,7 @@ type Props = {
   onChange: (next: { range: RangeKey; from?: string; to?: string }) => void;
 };
 
-const PRESETS: RangeKey[] = ["today", "yesterday", "last7", "thisMonth", "lastMonth"];
+const PRESETS: RangeKey[] = ["today", "yesterday", "last7", "thisMonth", "lastMonth", "allTime"];
 
 export function DateRangeFilter({ range, from, to, onChange }: Props) {
   const [open, setOpen] = useState(false);

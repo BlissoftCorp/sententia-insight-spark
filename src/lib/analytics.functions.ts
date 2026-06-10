@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getAppTimezone, resolveRange } from "./analytics-range";
 
 const rangeSchema = z.object({
-  range: z.enum(["today", "yesterday", "last7", "thisMonth", "lastMonth", "custom"]),
+  range: z.enum(["today", "yesterday", "last7", "thisMonth", "lastMonth", "allTime", "custom"]),
   from: z.string().optional(),
   to: z.string().optional(),
 });
