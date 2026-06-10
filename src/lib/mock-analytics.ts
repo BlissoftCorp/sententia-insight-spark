@@ -6,6 +6,7 @@ export type RangeKey =
   | "last7"
   | "thisMonth"
   | "lastMonth"
+  | "allTime"
   | "custom";
 
 export type Kpis = {
@@ -45,6 +46,12 @@ const TABLE: Record<Exclude<RangeKey, "custom">, Kpis> = {
     activeUsers: { value: 8_390, delta: 3.4 },
     queries: { value: 31_700, delta: 9.7 },
     payments: { value: 736, delta: 4.2 },
+  },
+  allTime: {
+    newUsers: { value: 12_540, delta: 0 },
+    activeUsers: { value: 48_210, delta: 0 },
+    queries: { value: 312_984, delta: 0 },
+    payments: { value: 6_120, delta: 0 },
   },
 };
 
@@ -106,5 +113,6 @@ export const RANGE_LABELS: Record<RangeKey, string> = {
   last7: "Last 7 days",
   thisMonth: "This month",
   lastMonth: "Last month",
+  allTime: "All time",
   custom: "Custom",
 };

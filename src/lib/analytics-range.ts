@@ -145,6 +145,15 @@ export function resolveRange(
         days: lastPrev.day,
       };
     }
+    case "allTime": {
+      const toInstant = endOfDayZ(today.year, today.month, today.day, tz);
+      const fromInstant = new Date(0);
+      const days = Math.max(
+        1,
+        Math.round((+toInstant - +fromInstant) / 86_400_000),
+      );
+      return { from: fromInstant, to: toInstant, days };
+    }
     default: {
       return {
         from: startOfDayZ(today.year, today.month, today.day, tz),
