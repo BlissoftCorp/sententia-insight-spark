@@ -25,10 +25,10 @@ const searchSchema = z.object({
   trendRange: fallback(z.enum(["last7", "last30"]), "last7").default("last7"),
 });
 
-const summaryQuery = (range: RangeKey, from?: string, to?: string) =>
+const summaryQuery = (range: RangeKey, from?: string, to?: string, trendRange?: TrendRange) =>
   queryOptions({
-    queryKey: ["summary", range, from ?? null, to ?? null],
-    queryFn: () => getSummary({ data: { range, from, to } }),
+    queryKey: ["summary", range, from ?? null, to ?? null, trendRange ?? "last7"],
+    queryFn: () => getSummary({ data: { range, from, to, trendRange } }),
     staleTime: 30_000,
   });
 
