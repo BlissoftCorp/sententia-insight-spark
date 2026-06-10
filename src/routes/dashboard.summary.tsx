@@ -8,7 +8,7 @@ import { Activity, CreditCard, Loader2, MessageSquare, UserPlus } from "lucide-r
 import { DateRangeFilter } from "@/components/dashboard/DateRangeFilter";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { TopUsersCard } from "@/components/dashboard/TopUsersCard";
-import { TrendChart } from "@/components/dashboard/TrendChart";
+import { TrendChart, type TrendRange } from "@/components/dashboard/TrendChart";
 import { DataErrorBanner } from "@/components/dashboard/DataErrorBanner";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
