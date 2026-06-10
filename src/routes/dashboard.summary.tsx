@@ -22,6 +22,7 @@ const searchSchema = z.object({
   ).default("today"),
   from: z.string().optional(),
   to: z.string().optional(),
+  trendRange: fallback(z.enum(["last7", "last30"]), "last7").default("last7"),
 });
 
 const summaryQuery = (range: RangeKey, from?: string, to?: string) =>
