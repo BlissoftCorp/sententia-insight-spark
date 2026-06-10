@@ -120,11 +120,19 @@ export function resolveRange(
       };
     }
     case "last7": {
-      const f = addDaysYMD(today.year, today.month, today.day, -6);
+      const f7 = addDaysYMD(today.year, today.month, today.day, -6);
       return {
-        from: startOfDayZ(f.year, f.month, f.day, tz),
+        from: startOfDayZ(f7.year, f7.month, f7.day, tz),
         to: endOfDayZ(today.year, today.month, today.day, tz),
         days: 7,
+      };
+    }
+    case "last30": {
+      const f30 = addDaysYMD(today.year, today.month, today.day, -29);
+      return {
+        from: startOfDayZ(f30.year, f30.month, f30.day, tz),
+        to: endOfDayZ(today.year, today.month, today.day, tz),
+        days: 30,
       };
     }
     case "thisMonth": {

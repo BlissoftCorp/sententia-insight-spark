@@ -8,7 +8,7 @@ import { Activity, CreditCard, Loader2, MessageSquare, UserPlus } from "lucide-r
 import { DateRangeFilter } from "@/components/dashboard/DateRangeFilter";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { TopUsersCard } from "@/components/dashboard/TopUsersCard";
-import { TrendChart } from "@/components/dashboard/TrendChart";
+import { TrendChart, type TrendRange } from "@/components/dashboard/TrendChart";
 import { DataErrorBanner } from "@/components/dashboard/DataErrorBanner";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,20 +22,21 @@ const searchSchema = z.object({
   ).default("today"),
   from: z.string().optional(),
   to: z.string().optional(),
+  trendRange: fallback(z.enum(["last7", "last30"]), "last7").default("last7"),
 });
 
-const summaryQuery = (range: RangeKey, from?: string, to?: string) =>
+const summaryQuery = (range: RangeKey, from?: string, to?: string, trendRange?: TrendRange) =>
   queryOptions({
-    queryKey: ["summary", range, from ?? null, to ?? null],
-    queryFn: () => getSummary({ data: { range, from, to } }),
+    queryKey: ["summary", range, from ?? null, to ?? null, trendRange ?? "last7"],
+    queryFn: () => getSummary({ data: { range, from, to, trendRange } }),
     staleTime: 30_000,
   });
 
 export const Route = createFileRoute("/dashboard/summary")({
   validateSearch: zodValidator(searchSchema),
-  loaderDeps: ({ search: { range, from, to } }) => ({ range, from, to }),
+  loaderDeps: ({ search: { range, from, to, trendRange } }) => ({ range, from, to, trendRange }),
   loader: ({ context, deps }) =>
-    context.queryClient.ensureQueryData(summaryQuery(deps.range, deps.from, deps.to)),
+    context.queryClient.ensureQueryData(summaryQuery(deps.range, deps.from, deps.to, deps.trendRange as TrendRange)),
   head: () => ({
     meta: [
       { title: "Summary — Sententia Analytics" },
@@ -46,8 +47,15 @@ export const Route = createFileRoute("/dashboard/summary")({
 });
 
 function SummaryPage() {
-  const search = Route.useSearch() as { range: RangeKey; from?: string; to?: string };
+  const search = Route.useSearch() as {
+    range: RangeKey;
+    from?: string;
+    to?: string;
+    trendRange?: TrendRange;
+  };
   const navigate = useNavigate({ from: "/dashboard/summary" });
+
+  const trendRange = search.trendRange ?? "last7";
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
@@ -68,7 +76,15 @@ function SummaryPage() {
       </div>
 
       <Suspense fallback={<SummarySkeleton />}>
-        <SummaryContent range={search.range} from={search.from} to={search.to} />
+        <SummaryContent
+          range={search.range}
+          from={search.from}
+          to={search.to}
+          trendRange={trendRange}
+          onTrendRangeChange={(next) =>
+            navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, trendRange: next }) })
+          }
+        />
       </Suspense>
     </div>
   );
@@ -78,12 +94,16 @@ function SummaryContent({
   range,
   from,
   to,
+  trendRange,
+  onTrendRangeChange,
 }: {
   range: RangeKey;
   from?: string;
   to?: string;
+  trendRange: TrendRange;
+  onTrendRangeChange: (range: TrendRange) => void;
 }) {
-  const { data } = useSuspenseQuery(summaryQuery(range, from, to));
+  const { data } = useSuspenseQuery(summaryQuery(range, from, to, trendRange));
 
   return (
     <>
@@ -116,7 +136,11 @@ function SummaryContent({
         />
       </div>
 
-      <TrendChart data={data.trend} />
+      <TrendChart
+        data={data.trend}
+        trendRange={trendRange}
+        onTrendRangeChange={onTrendRangeChange}
+      />
       <TopUsersCard users={data.topUsers} />
     </>
   );

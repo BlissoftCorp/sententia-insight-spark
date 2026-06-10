@@ -14,6 +14,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { SummaryResponse } from "@/lib/analytics.functions";
 
 type TrendPoint = SummaryResponse["trend"][number];
@@ -21,6 +22,7 @@ type TrendPoint = SummaryResponse["trend"][number];
 type Metric = {
   key: "newUsers" | "queries" | "activeUsers";
   label: string;
+  label30: string;
   description: string;
   colorVar: string;
 };
@@ -29,36 +31,65 @@ const METRICS: Metric[] = [
   {
     key: "newUsers",
     label: "New users last 7 days",
+    label30: "New users last 30 days",
     description: "Daily sign-ups including today",
     colorVar: "var(--chart-1)",
   },
   {
     key: "queries",
     label: "Queries last 7 days",
+    label30: "Queries last 30 days",
     description: "AI queries per day including today",
     colorVar: "var(--chart-2)",
   },
   {
     key: "activeUsers",
     label: "Active users last 7 days",
+    label30: "Active users last 30 days",
     description: "Distinct users with queries per day",
     colorVar: "var(--chart-3)",
   },
 ];
 
-export function TrendChart({ data }: { data: TrendPoint[] }) {
+export type TrendRange = "last7" | "last30";
+
+export function TrendChart({
+  data,
+  trendRange,
+  onTrendRangeChange,
+}: {
+  data: TrendPoint[];
+  trendRange: TrendRange;
+  onTrendRangeChange: (range: TrendRange) => void;
+}) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       {METRICS.map((m) => {
+        const label = trendRange === "last30" ? m.label30 : m.label;
         const config = {
-          [m.key]: { label: m.label, color: m.colorVar },
+          [m.key]: { label, color: m.colorVar },
         } satisfies ChartConfig;
 
         return (
           <Card key={m.key} className="p-5">
-            <div className="mb-4">
-              <h2 className="text-base font-semibold">{m.label}</h2>
-              <p className="text-xs text-muted-foreground">{m.description}</p>
+            <div className="mb-4 flex items-start justify-between gap-2">
+              <div>
+                <h2 className="text-base font-semibold">{label}</h2>
+                <p className="text-xs text-muted-foreground">{m.description}</p>
+              </div>
+              <Tabs
+                value={trendRange}
+                onValueChange={(v) => onTrendRangeChange(v as TrendRange)}
+              >
+                <TabsList className="h-7">
+                  <TabsTrigger value="last7" className="px-2 text-xs">
+                    7D
+                  </TabsTrigger>
+                  <TabsTrigger value="last30" className="px-2 text-xs">
+                    1M
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
             <ChartContainer config={config} className="h-[200px] w-full">
               <ResponsiveContainer>

@@ -4,9 +4,10 @@ import { z } from "zod";
 import { getAppTimezone, resolveRange } from "./analytics-range";
 
 const rangeSchema = z.object({
-  range: z.enum(["today", "yesterday", "last7", "thisMonth", "lastMonth", "allTime", "custom"]),
+  range: z.enum(["today", "yesterday", "last7", "last30", "thisMonth", "lastMonth", "allTime", "custom"]),
   from: z.string().optional(),
   to: z.string().optional(),
+  trendRange: z.enum(["last7", "last30"]).default("last7"),
 });
 
 type Kpi = { value: number; delta: number | null };
@@ -86,7 +87,7 @@ function pctDelta(curr: number, prev: number): number | null {
 }
 
 export const getSummary = createServerFn({ method: "POST" })
-  .inputValidator((data: { range: string; from?: string; to?: string }) =>
+  .inputValidator((data: { range: string; from?: string; to?: string; trendRange?: string }) =>
     rangeSchema.parse(data),
   )
   .handler(async ({ data }): Promise<SummaryResponse> => {
@@ -107,9 +108,8 @@ export const getSummary = createServerFn({ method: "POST" })
       const tz = getAppTimezone();
       const { from, to } = resolveRange(data.range as never, data.from, data.to, tz);
       const { prevFrom, prevTo } = shiftRange(from, to);
-      // Trend charts always show the last 7 days (including today),
-      // independent of the KPI date range.
-      const trendRange = resolveRange("last7", undefined, undefined, tz);
+      const trendRangeKey = data.trendRange ?? "last7";
+      const trendRange = resolveRange(trendRangeKey, undefined, undefined, tz);
       const trendFrom = trendRange.from;
       const trendTo = trendRange.to;
 
