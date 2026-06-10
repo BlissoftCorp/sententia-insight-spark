@@ -2,7 +2,7 @@ import { Suspense, useMemo, useState } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { ChevronRight, Loader2, Search } from "lucide-react";
+import { ChevronRight, Loader2, Search, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table";
 import { DataErrorBanner } from "@/components/dashboard/DataErrorBanner";
 import { getUsersList } from "@/lib/analytics.functions";
+import { cn } from "@/lib/utils";
 
 const usersQuery = queryOptions({
   queryKey: ["users-list"],
@@ -42,6 +43,9 @@ function formatDateTime(iso: string | null) {
   return format(new Date(iso), "d/M/yyyy HH:mm:ss");
 }
 
+type SortKey = "name" | "email" | "queries" | "tokens" | "lastSession" | "createdAt";
+type SortDir = "asc" | "desc";
+
 function UsersPage() {
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
@@ -52,19 +56,88 @@ function UsersPage() {
   );
 }
 
+function SortHeader({
+  label,
+  sortKey,
+  current,
+  dir,
+  onToggle,
+  align = "left",
+}: {
+  label: string;
+  sortKey: SortKey;
+  current: SortKey | null;
+  dir: SortDir;
+  onToggle: (k: SortKey) => void;
+  align?: "left" | "right";
+}) {
+  const active = current === sortKey;
+  const Icon = !active ? ArrowUpDown : dir === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <button
+      type="button"
+      onClick={() => onToggle(sortKey)}
+      className={cn(
+        "inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground",
+        active && "text-foreground",
+        align === "right" && "ml-auto flex-row-reverse",
+      )}
+      aria-label={`Sort by ${label}`}
+    >
+      <span>{label}</span>
+      <Icon className={cn("h-3.5 w-3.5", !active && "opacity-50")} />
+    </button>
+  );
+}
+
 function UsersContent() {
   const { data } = useSuspenseQuery(usersQuery);
   const [query, setQuery] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey | null>("queries");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const toggleSort = (k: SortKey) => {
+    if (sortKey === k) {
+      if (sortDir === "desc") setSortDir("asc");
+      else {
+        setSortKey(null);
+      }
+    } else {
+      setSortKey(k);
+      setSortDir("desc");
+    }
+  };
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return data.users;
-    return data.users.filter(
-      (u) =>
-        (u.name?.toLowerCase().includes(q) ?? false) ||
-        u.email.toLowerCase().includes(q),
-    );
-  }, [query, data.users]);
+    let list = !q
+      ? data.users
+      : data.users.filter(
+          (u) =>
+            (u.name?.toLowerCase().includes(q) ?? false) ||
+            u.email.toLowerCase().includes(q),
+        );
+
+    if (sortKey) {
+      const dirMul = sortDir === "asc" ? 1 : -1;
+      list = [...list].sort((a, b) => {
+        const av = a[sortKey];
+        const bv = b[sortKey];
+        if (av === null || av === undefined) return 1;
+        if (bv === null || bv === undefined) return -1;
+        if (typeof av === "number" && typeof bv === "number") return (av - bv) * dirMul;
+        const as = String(av).toLowerCase();
+        const bs = String(bv).toLowerCase();
+        if (sortKey === "lastSession" || sortKey === "createdAt") {
+          return (new Date(as).getTime() - new Date(bs).getTime()) * dirMul;
+        }
+        return as.localeCompare(bs) * dirMul;
+      });
+    }
+    return list;
+  }, [query, data.users, sortKey, sortDir]);
+
+  const sortProps = { current: sortKey, dir: sortDir, onToggle: toggleSort };
 
   return (
     <>
@@ -93,12 +166,24 @@ function UsersContent() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead className="text-right">Queries</TableHead>
-              <TableHead className="text-right">Tokens</TableHead>
-              <TableHead>Last Session</TableHead>
-              <TableHead className="hidden lg:table-cell">Created</TableHead>
+              <TableHead>
+                <SortHeader label="Name" sortKey="name" {...sortProps} />
+              </TableHead>
+              <TableHead>
+                <SortHeader label="Email" sortKey="email" {...sortProps} />
+              </TableHead>
+              <TableHead className="text-right">
+                <SortHeader label="Queries" sortKey="queries" align="right" {...sortProps} />
+              </TableHead>
+              <TableHead className="text-right">
+                <SortHeader label="Tokens" sortKey="tokens" align="right" {...sortProps} />
+              </TableHead>
+              <TableHead>
+                <SortHeader label="Last Session" sortKey="lastSession" {...sortProps} />
+              </TableHead>
+              <TableHead className="hidden lg:table-cell">
+                <SortHeader label="Created" sortKey="createdAt" {...sortProps} />
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
