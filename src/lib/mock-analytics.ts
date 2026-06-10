@@ -36,6 +36,12 @@ const TABLE: Record<Exclude<RangeKey, "custom">, Kpis> = {
     queries: { value: 8_932, delta: 14.8 },
     payments: { value: 198, delta: 9.2 },
   },
+  last30: {
+    newUsers: { value: 1_230, delta: 5.2 },
+    activeUsers: { value: 9_100, delta: 4.1 },
+    queries: { value: 38_200, delta: 7.8 },
+    payments: { value: 820, delta: 3.5 },
+  },
   thisMonth: {
     newUsers: { value: 1_204, delta: 18.9 },
     activeUsers: { value: 9_420, delta: 12.3 },
