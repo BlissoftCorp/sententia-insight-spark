@@ -34,9 +34,9 @@ const summaryQuery = (range: RangeKey, from?: string, to?: string, trendRange?: 
 
 export const Route = createFileRoute("/dashboard/summary")({
   validateSearch: zodValidator(searchSchema),
-  loaderDeps: ({ search: { range, from, to } }) => ({ range, from, to }),
+  loaderDeps: ({ search: { range, from, to, trendRange } }) => ({ range, from, to, trendRange }),
   loader: ({ context, deps }) =>
-    context.queryClient.ensureQueryData(summaryQuery(deps.range, deps.from, deps.to)),
+    context.queryClient.ensureQueryData(summaryQuery(deps.range, deps.from, deps.to, deps.trendRange as TrendRange)),
   head: () => ({
     meta: [
       { title: "Summary — Sententia Analytics" },
