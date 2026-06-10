@@ -118,6 +118,7 @@ export const RANGE_LABELS: Record<RangeKey, string> = {
   today: "Today",
   yesterday: "Yesterday",
   last7: "Last 7 days",
+  last30: "Last 30 days",
   thisMonth: "This month",
   lastMonth: "Last month",
   allTime: "All time",
