@@ -94,12 +94,16 @@ function SummaryContent({
   range,
   from,
   to,
+  trendRange,
+  onTrendRangeChange,
 }: {
   range: RangeKey;
   from?: string;
   to?: string;
+  trendRange: TrendRange;
+  onTrendRangeChange: (range: TrendRange) => void;
 }) {
-  const { data } = useSuspenseQuery(summaryQuery(range, from, to));
+  const { data } = useSuspenseQuery(summaryQuery(range, from, to, trendRange));
 
   return (
     <>
@@ -132,7 +136,11 @@ function SummaryContent({
         />
       </div>
 
-      <TrendChart data={data.trend} />
+      <TrendChart
+        data={data.trend}
+        trendRange={trendRange}
+        onTrendRangeChange={onTrendRangeChange}
+      />
       <TopUsersCard users={data.topUsers} />
     </>
   );
