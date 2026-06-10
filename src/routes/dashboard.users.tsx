@@ -43,7 +43,7 @@ function formatDateTime(iso: string | null) {
   return format(new Date(iso), "d/M/yyyy HH:mm:ss");
 }
 
-type SortKey = "name" | "email" | "queries" | "tokens" | "lastSession" | "createdAt";
+type SortKey = "queries" | "tokens" | "lastSession" | "createdAt";
 type SortDir = "asc" | "desc";
 
 function UsersPage() {
