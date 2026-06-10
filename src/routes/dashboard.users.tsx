@@ -166,12 +166,8 @@ function UsersContent() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>
-                <SortHeader label="Name" sortKey="name" {...sortProps} />
-              </TableHead>
-              <TableHead>
-                <SortHeader label="Email" sortKey="email" {...sortProps} />
-              </TableHead>
+              <TableHead className="text-xs font-medium text-muted-foreground">Name</TableHead>
+              <TableHead className="text-xs font-medium text-muted-foreground">Email</TableHead>
               <TableHead className="text-right">
                 <SortHeader label="Queries" sortKey="queries" align="right" {...sortProps} />
               </TableHead>
