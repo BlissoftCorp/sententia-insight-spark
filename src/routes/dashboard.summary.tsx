@@ -82,7 +82,7 @@ function SummaryPage() {
           to={search.to}
           trendRange={trendRange}
           onTrendRangeChange={(next) =>
-            navigate({ search: (prev) => ({ ...prev, trendRange: next }) })
+            navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, trendRange: next }) })
           }
         />
       </Suspense>
