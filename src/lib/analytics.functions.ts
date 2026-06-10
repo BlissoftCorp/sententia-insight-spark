@@ -4,9 +4,10 @@ import { z } from "zod";
 import { getAppTimezone, resolveRange } from "./analytics-range";
 
 const rangeSchema = z.object({
-  range: z.enum(["today", "yesterday", "last7", "thisMonth", "lastMonth", "allTime", "custom"]),
+  range: z.enum(["today", "yesterday", "last7", "last30", "thisMonth", "lastMonth", "allTime", "custom"]),
   from: z.string().optional(),
   to: z.string().optional(),
+  trendRange: z.enum(["last7", "last30"]).default("last7"),
 });
 
 type Kpi = { value: number; delta: number | null };
