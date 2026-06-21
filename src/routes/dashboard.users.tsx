@@ -269,15 +269,31 @@ function UsersContent() {
             {fmtNumber.format(rows.length)} of {fmtNumber.format(data.users.length)} users · click a row to view activity
           </p>
         </div>
-        <div className="relative w-full md:w-80">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by name or email..."
-            className="pl-9"
-            aria-label="Search users"
-          />
+        <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportAllExcel}
+            disabled={exportingAll}
+            className="md:h-10"
+          >
+            {exportingAll ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Export all (Excel)
+          </Button>
+          <div className="relative w-full md:w-80">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by name or email..."
+              className="pl-9"
+              aria-label="Search users"
+            />
+          </div>
         </div>
       </div>
 
