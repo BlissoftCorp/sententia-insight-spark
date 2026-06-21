@@ -75,6 +75,25 @@ export type UserActivityResponse = {
   error: string | null;
 };
 
+export type AllUsersActivityResponse = {
+  users: Array<{
+    id: string;
+    name: string | null;
+    email: string;
+    role: string | null;
+    isActive: boolean;
+    emailVerified: boolean;
+    createdAt: string;
+    firstQueryAt: string | null;
+    lastQueryAt: string | null;
+    conversationsCount: number;
+    queries: number;
+    tokens: number;
+    conversations: UserActivityResponse["conversations"];
+  }>;
+  error: string | null;
+};
+
 export type UserDetailResponse = {
   user: {
     id: string;
