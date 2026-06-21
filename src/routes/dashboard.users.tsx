@@ -13,7 +13,12 @@ import {
   Sparkles,
   CheckCircle2,
   XCircle,
+  FileSpreadsheet,
+  FileText,
 } from "lucide-react";
+import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
+import { Button } from "@/components/ui/button";
 
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
