@@ -331,7 +331,7 @@ function UserRowGroup({
       {isOpen && (
         <TableRow className="bg-muted/20 hover:bg-muted/20">
           <TableCell colSpan={11} className="p-0">
-            <UserActivityPanel userId={user.id} />
+            <UserActivityPanel userId={user.id} user={user} />
           </TableCell>
         </TableRow>
       )}
