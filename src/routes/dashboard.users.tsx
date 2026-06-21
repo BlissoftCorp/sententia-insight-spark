@@ -339,7 +339,7 @@ function UserRowGroup({
   );
 }
 
-function UserActivityPanel({ userId }: { userId: string }) {
+function UserActivityPanel({ userId, user }: { userId: string; user: UserRow }) {
   const { data, isLoading, error } = useQuery(userActivityQuery(userId));
 
   if (isLoading) {
@@ -372,6 +372,96 @@ function UserActivityPanel({ userId }: { userId: string }) {
       </div>
     );
   }
+
+  const safeName = (user.name ?? user.email.split("@")[0]).replace(/[^a-z0-9_-]+/gi, "_");
+  const stamp = format(new Date(), "yyyyMMdd-HHmm");
+
+  const exportExcel = () => {
+    const rows: Record<string, string | number>[] = [];
+    conversations.forEach((conv) => {
+      conv.pairs.forEach((p, idx) => {
+        rows.push({
+          conversation_id: conv.id,
+          conversation_title: conv.title || "Untitled",
+          conversation_created_at: conv.createdAt,
+          archived: conv.archived ? "yes" : "no",
+          pair_index: idx + 1,
+          query: p.query,
+          query_at: p.queryCreatedAt ?? "",
+          response: p.response ?? "",
+          response_at: p.responseCreatedAt ?? "",
+          confidence: p.confidence ?? "",
+          total_tokens: p.usage?.total_tokens ?? "",
+        });
+      });
+    });
+    const meta = [
+      ["User", user.name ?? ""],
+      ["Email", user.email],
+      ["Role", user.role ?? ""],
+      ["Conversations", conversations.length],
+      ["Queries", rows.length],
+      ["Exported at", new Date().toISOString()],
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(meta), "User");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "Conversations");
+    XLSX.writeFile(wb, `conversations_${safeName}_${stamp}.xlsx`);
+  };
+
+  const exportPdf = () => {
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 40;
+    const maxW = pageW - margin * 2;
+    let y = margin;
+
+    const ensure = (h: number) => {
+      if (y + h > pageH - margin) {
+        doc.addPage();
+        y = margin;
+      }
+    };
+    const writeBlock = (text: string, size: number, bold = false) => {
+      doc.setFont("helvetica", bold ? "bold" : "normal");
+      doc.setFontSize(size);
+      const lines = doc.splitTextToSize(text || "—", maxW);
+      const lineH = size * 1.25;
+      for (const line of lines) {
+        ensure(lineH);
+        doc.text(line, margin, y);
+        y += lineH;
+      }
+    };
+
+    writeBlock(`Conversations — ${user.name ?? user.email}`, 16, true);
+    writeBlock(`${user.email}${user.role ? ` · ${user.role}` : ""}`, 10);
+    writeBlock(`Exported ${new Date().toISOString()} · ${conversations.length} conversations`, 9);
+    y += 8;
+
+    conversations.forEach((conv, ci) => {
+      y += 6;
+      writeBlock(`#${ci + 1} ${conv.title || "Untitled conversation"}`, 12, true);
+      writeBlock(`Created ${conv.createdAt} · ${conv.pairs.length} queries${conv.archived ? " · archived" : ""}`, 9);
+      conv.pairs.forEach((p, idx) => {
+        y += 4;
+        writeBlock(`Q${idx + 1} (${p.queryCreatedAt ?? ""})`, 10, true);
+        writeBlock(p.query, 10);
+        y += 2;
+        const meta = [
+          p.responseCreatedAt ? `at ${p.responseCreatedAt}` : null,
+          p.confidence ? `conf ${p.confidence}` : null,
+          p.usage?.total_tokens != null ? `${p.usage.total_tokens} tokens` : null,
+        ].filter(Boolean).join(" · ");
+        writeBlock(`Sententia${meta ? ` — ${meta}` : ""}`, 10, true);
+        writeBlock(p.response ?? "(no response)", 10);
+      });
+    });
+
+    doc.save(`conversations_${safeName}_${stamp}.pdf`);
+  };
+
 
   return (
     <div className="flex flex-col gap-5 px-6 py-5">
