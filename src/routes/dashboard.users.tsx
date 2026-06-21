@@ -33,7 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DataErrorBanner } from "@/components/dashboard/DataErrorBanner";
-import { getUsersList, getUserActivity } from "@/lib/analytics.functions";
+import { getUsersList, getUserActivity, getAllUsersActivity } from "@/lib/analytics.functions";
 import { cn } from "@/lib/utils";
 
 const usersQuery = queryOptions({
@@ -126,6 +126,94 @@ function UsersContent() {
   const [sortKey, setSortKey] = useState<SortKey | null>("lastSession");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [exportingAll, setExportingAll] = useState(false);
+
+  const exportAllExcel = async () => {
+    if (exportingAll) return;
+    setExportingAll(true);
+    try {
+      const result = await getAllUsersActivity();
+      if (result.error) {
+        alert(`Export failed: ${result.error}`);
+        return;
+      }
+      const users = result.users;
+      if (users.length === 0) {
+        alert("No users with conversations to export.");
+        return;
+      }
+
+      const usersSheet = users.map((u) => ({
+        user_id: u.id,
+        name: u.name ?? "",
+        email: u.email,
+        role: u.role ?? "",
+        is_active: u.isActive ? "yes" : "no",
+        email_verified: u.emailVerified ? "yes" : "no",
+        signup_at: u.createdAt,
+        first_query_at: u.firstQueryAt ?? "",
+        last_query_at: u.lastQueryAt ?? "",
+        conversations: u.conversationsCount,
+        queries: u.queries,
+        total_tokens: u.tokens,
+      }));
+
+      const conversationsSheet: Record<string, string | number>[] = [];
+      const messagesSheet: Record<string, string | number>[] = [];
+      users.forEach((u) => {
+        u.conversations.forEach((c) => {
+          conversationsSheet.push({
+            user_id: u.id,
+            user_email: u.email,
+            user_name: u.name ?? "",
+            conversation_id: c.id,
+            title: c.title ?? "Untitled",
+            archived: c.archived ? "yes" : "no",
+            created_at: c.createdAt,
+            queries: c.pairs.length,
+          });
+          c.pairs.forEach((p, idx) => {
+            messagesSheet.push({
+              user_id: u.id,
+              user_email: u.email,
+              user_name: u.name ?? "",
+              conversation_id: c.id,
+              conversation_title: c.title ?? "Untitled",
+              pair_index: idx + 1,
+              query: p.query,
+              query_at: p.queryCreatedAt,
+              response: p.response ?? "",
+              response_at: p.responseCreatedAt ?? "",
+              confidence: p.confidence ?? "",
+              total_tokens: p.usage?.total_tokens ?? "",
+              prompt_tokens: p.usage?.prompt_tokens ?? "",
+              completion_tokens: p.usage?.completion_tokens ?? "",
+            });
+          });
+        });
+      });
+
+      const meta = [
+        ["Export", "All users with at least one query"],
+        ["Generated at", new Date().toISOString()],
+        ["Users", users.length],
+        ["Conversations", conversationsSheet.length],
+        ["Queries", messagesSheet.length],
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(meta), "Summary");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(usersSheet), "Users");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(conversationsSheet), "Conversations");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(messagesSheet), "Messages");
+      const stamp = format(new Date(), "yyyyMMdd-HHmm");
+      XLSX.writeFile(wb, `all_users_conversations_${stamp}.xlsx`);
+    } catch (e) {
+      alert(`Export failed: ${(e as Error).message}`);
+    } finally {
+      setExportingAll(false);
+    }
+  };
 
   const toggleSort = (k: SortKey) => {
     if (sortKey === k) {
@@ -181,15 +269,31 @@ function UsersContent() {
             {fmtNumber.format(rows.length)} of {fmtNumber.format(data.users.length)} users · click a row to view activity
           </p>
         </div>
-        <div className="relative w-full md:w-80">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by name or email..."
-            className="pl-9"
-            aria-label="Search users"
-          />
+        <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportAllExcel}
+            disabled={exportingAll}
+            className="md:h-10"
+          >
+            {exportingAll ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Export all (Excel)
+          </Button>
+          <div className="relative w-full md:w-80">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by name or email..."
+              className="pl-9"
+              aria-label="Search users"
+            />
+          </div>
         </div>
       </div>
 

@@ -75,6 +75,25 @@ export type UserActivityResponse = {
   error: string | null;
 };
 
+export type AllUsersActivityResponse = {
+  users: Array<{
+    id: string;
+    name: string | null;
+    email: string;
+    role: string | null;
+    isActive: boolean;
+    emailVerified: boolean;
+    createdAt: string;
+    firstQueryAt: string | null;
+    lastQueryAt: string | null;
+    conversationsCount: number;
+    queries: number;
+    tokens: number;
+    conversations: UserActivityResponse["conversations"];
+  }>;
+  error: string | null;
+};
+
 export type UserDetailResponse = {
   user: {
     id: string;
@@ -605,6 +624,133 @@ export const getTracking = createServerFn({ method: "GET" }).handler(
     } catch (e) {
       console.error("getTracking failed:", e);
       return { ...empty, error: (e as Error).message };
+    }
+  },
+);
+
+export const getAllUsersActivity = createServerFn({ method: "GET" }).handler(
+  async (): Promise<AllUsersActivityResponse> => {
+    try {
+      const { sql } = await import("./db.server");
+      const rows = await sql<
+        {
+          user_id: string;
+          name: string | null;
+          email: string;
+          role: string | null;
+          is_active: boolean;
+          email_verified: boolean;
+          user_created_at: Date;
+          conversation_id: string;
+          conversation_title: string | null;
+          archived: boolean;
+          conversation_created_at: Date;
+          user_message_id: string;
+          user_query: string;
+          query_created_at: Date;
+          assistant_message_id: string | null;
+          assistant_response: string | null;
+          assistant_confidence: string | null;
+          assistant_usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | null;
+          response_created_at: Date | null;
+        }[]
+      >`
+        SELECT
+          u.id::text AS user_id,
+          COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS name,
+          u.email,
+          u.role,
+          u.is_active,
+          u.email_verified,
+          u.created_at AS user_created_at,
+          c.id::text AS conversation_id,
+          c.title AS conversation_title,
+          c.archived,
+          c.created_at AS conversation_created_at,
+          user_msg.id::text AS user_message_id,
+          user_msg.content AS user_query,
+          user_msg.created_at AS query_created_at,
+          assistant_msg.id::text AS assistant_message_id,
+          assistant_msg.content AS assistant_response,
+          assistant_msg.confidence AS assistant_confidence,
+          assistant_msg.usage AS assistant_usage,
+          assistant_msg.created_at AS response_created_at
+        FROM users u
+        JOIN conversations c ON c.user_id = u.id
+        JOIN messages user_msg
+          ON user_msg.conversation_id = c.id AND user_msg.role = 'user'
+        LEFT JOIN LATERAL (
+          SELECT m.id, m.content, m.confidence, m.usage, m.created_at
+          FROM messages m
+          WHERE m.conversation_id = c.id
+            AND m.role = 'assistant'
+            AND m.created_at > user_msg.created_at
+          ORDER BY m.created_at ASC
+          LIMIT 1
+        ) assistant_msg ON true
+        ORDER BY u.created_at DESC, c.created_at DESC, user_msg.created_at ASC
+      `;
+
+      const userMap = new Map<string, AllUsersActivityResponse["users"][number]>();
+      const convMap = new Map<string, UserActivityResponse["conversations"][number]>();
+
+      for (const r of rows) {
+        let user = userMap.get(r.user_id);
+        if (!user) {
+          user = {
+            id: r.user_id,
+            name: r.name,
+            email: r.email,
+            role: r.role,
+            isActive: r.is_active,
+            emailVerified: r.email_verified,
+            createdAt: new Date(r.user_created_at).toISOString(),
+            firstQueryAt: null,
+            lastQueryAt: null,
+            conversationsCount: 0,
+            queries: 0,
+            tokens: 0,
+            conversations: [],
+          };
+          userMap.set(r.user_id, user);
+        }
+        const convKey = `${r.user_id}:${r.conversation_id}`;
+        let conv = convMap.get(convKey);
+        if (!conv) {
+          conv = {
+            id: r.conversation_id,
+            title: r.conversation_title,
+            archived: r.archived,
+            createdAt: new Date(r.conversation_created_at).toISOString(),
+            pairs: [],
+          };
+          convMap.set(convKey, conv);
+          user.conversations.push(conv);
+          user.conversationsCount += 1;
+        }
+        const qAt = new Date(r.query_created_at).toISOString();
+        conv.pairs.push({
+          userMessageId: r.user_message_id,
+          query: r.user_query,
+          queryCreatedAt: qAt,
+          assistantMessageId: r.assistant_message_id,
+          response: r.assistant_response,
+          responseCreatedAt: r.response_created_at
+            ? new Date(r.response_created_at).toISOString()
+            : null,
+          confidence: r.assistant_confidence,
+          usage: r.assistant_usage,
+        });
+        user.queries += 1;
+        user.tokens += r.assistant_usage?.total_tokens ?? 0;
+        if (!user.firstQueryAt || qAt < user.firstQueryAt) user.firstQueryAt = qAt;
+        if (!user.lastQueryAt || qAt > user.lastQueryAt) user.lastQueryAt = qAt;
+      }
+
+      return { users: Array.from(userMap.values()), error: null };
+    } catch (e) {
+      console.error("getAllUsersActivity failed:", e);
+      return { users: [], error: (e as Error).message };
     }
   },
 );
