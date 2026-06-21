@@ -465,6 +465,21 @@ function UserActivityPanel({ userId, user }: { userId: string; user: UserRow }) 
 
   return (
     <div className="flex flex-col gap-5 px-6 py-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-xs text-muted-foreground">
+          {conversations.length} conversation{conversations.length === 1 ? "" : "s"} ·{" "}
+          {conversations.reduce((n, c) => n + c.pairs.length, 0)} queries
+        </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={exportExcel}>
+            <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" /> Excel
+          </Button>
+          <Button size="sm" variant="outline" onClick={exportPdf}>
+            <FileText className="mr-1.5 h-3.5 w-3.5" /> PDF
+          </Button>
+        </div>
+      </div>
+
       {conversations.map((conv) => (
         <div key={conv.id} className="rounded-lg border border-border bg-background p-4">
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2 border-b border-border pb-2">
