@@ -13,7 +13,12 @@ import {
   Sparkles,
   CheckCircle2,
   XCircle,
+  FileSpreadsheet,
+  FileText,
 } from "lucide-react";
+import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
+import { Button } from "@/components/ui/button";
 
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -326,7 +331,7 @@ function UserRowGroup({
       {isOpen && (
         <TableRow className="bg-muted/20 hover:bg-muted/20">
           <TableCell colSpan={11} className="p-0">
-            <UserActivityPanel userId={user.id} />
+            <UserActivityPanel userId={user.id} user={user} />
           </TableCell>
         </TableRow>
       )}
@@ -334,7 +339,7 @@ function UserRowGroup({
   );
 }
 
-function UserActivityPanel({ userId }: { userId: string }) {
+function UserActivityPanel({ userId, user }: { userId: string; user: UserRow }) {
   const { data, isLoading, error } = useQuery(userActivityQuery(userId));
 
   if (isLoading) {
@@ -368,8 +373,113 @@ function UserActivityPanel({ userId }: { userId: string }) {
     );
   }
 
+  const safeName = (user.name ?? user.email.split("@")[0]).replace(/[^a-z0-9_-]+/gi, "_");
+  const stamp = format(new Date(), "yyyyMMdd-HHmm");
+
+  const exportExcel = () => {
+    const rows: Record<string, string | number>[] = [];
+    conversations.forEach((conv) => {
+      conv.pairs.forEach((p, idx) => {
+        rows.push({
+          conversation_id: conv.id,
+          conversation_title: conv.title || "Untitled",
+          conversation_created_at: conv.createdAt,
+          archived: conv.archived ? "yes" : "no",
+          pair_index: idx + 1,
+          query: p.query,
+          query_at: p.queryCreatedAt ?? "",
+          response: p.response ?? "",
+          response_at: p.responseCreatedAt ?? "",
+          confidence: p.confidence ?? "",
+          total_tokens: p.usage?.total_tokens ?? "",
+        });
+      });
+    });
+    const meta = [
+      ["User", user.name ?? ""],
+      ["Email", user.email],
+      ["Role", user.role ?? ""],
+      ["Conversations", conversations.length],
+      ["Queries", rows.length],
+      ["Exported at", new Date().toISOString()],
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(meta), "User");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "Conversations");
+    XLSX.writeFile(wb, `conversations_${safeName}_${stamp}.xlsx`);
+  };
+
+  const exportPdf = () => {
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 40;
+    const maxW = pageW - margin * 2;
+    let y = margin;
+
+    const ensure = (h: number) => {
+      if (y + h > pageH - margin) {
+        doc.addPage();
+        y = margin;
+      }
+    };
+    const writeBlock = (text: string, size: number, bold = false) => {
+      doc.setFont("helvetica", bold ? "bold" : "normal");
+      doc.setFontSize(size);
+      const lines = doc.splitTextToSize(text || "—", maxW);
+      const lineH = size * 1.25;
+      for (const line of lines) {
+        ensure(lineH);
+        doc.text(line, margin, y);
+        y += lineH;
+      }
+    };
+
+    writeBlock(`Conversations — ${user.name ?? user.email}`, 16, true);
+    writeBlock(`${user.email}${user.role ? ` · ${user.role}` : ""}`, 10);
+    writeBlock(`Exported ${new Date().toISOString()} · ${conversations.length} conversations`, 9);
+    y += 8;
+
+    conversations.forEach((conv, ci) => {
+      y += 6;
+      writeBlock(`#${ci + 1} ${conv.title || "Untitled conversation"}`, 12, true);
+      writeBlock(`Created ${conv.createdAt} · ${conv.pairs.length} queries${conv.archived ? " · archived" : ""}`, 9);
+      conv.pairs.forEach((p, idx) => {
+        y += 4;
+        writeBlock(`Q${idx + 1} (${p.queryCreatedAt ?? ""})`, 10, true);
+        writeBlock(p.query, 10);
+        y += 2;
+        const meta = [
+          p.responseCreatedAt ? `at ${p.responseCreatedAt}` : null,
+          p.confidence ? `conf ${p.confidence}` : null,
+          p.usage?.total_tokens != null ? `${p.usage.total_tokens} tokens` : null,
+        ].filter(Boolean).join(" · ");
+        writeBlock(`Sententia${meta ? ` — ${meta}` : ""}`, 10, true);
+        writeBlock(p.response ?? "(no response)", 10);
+      });
+    });
+
+    doc.save(`conversations_${safeName}_${stamp}.pdf`);
+  };
+
+
   return (
     <div className="flex flex-col gap-5 px-6 py-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-xs text-muted-foreground">
+          {conversations.length} conversation{conversations.length === 1 ? "" : "s"} ·{" "}
+          {conversations.reduce((n, c) => n + c.pairs.length, 0)} queries
+        </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={exportExcel}>
+            <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" /> Excel
+          </Button>
+          <Button size="sm" variant="outline" onClick={exportPdf}>
+            <FileText className="mr-1.5 h-3.5 w-3.5" /> PDF
+          </Button>
+        </div>
+      </div>
+
       {conversations.map((conv) => (
         <div key={conv.id} className="rounded-lg border border-border bg-background p-4">
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2 border-b border-border pb-2">
