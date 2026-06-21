@@ -69,7 +69,7 @@ export type UserActivityResponse = {
       response: string | null;
       responseCreatedAt: string | null;
       confidence: string | null;
-      usage: Record<string, unknown> | null;
+      usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | null;
     }>;
   }>;
   error: string | null;
@@ -353,7 +353,7 @@ export const getUserActivity = createServerFn({ method: "POST" })
           assistant_message_id: string | null;
           assistant_response: string | null;
           assistant_confidence: string | null;
-          assistant_usage: Record<string, unknown> | null;
+          assistant_usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | null;
           response_created_at: Date | null;
         }[]
       >`
