@@ -33,7 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DataErrorBanner } from "@/components/dashboard/DataErrorBanner";
-import { getUsersList, getUserActivity } from "@/lib/analytics.functions";
+import { getUsersList, getUserActivity, getAllUsersActivity } from "@/lib/analytics.functions";
 import { cn } from "@/lib/utils";
 
 const usersQuery = queryOptions({
