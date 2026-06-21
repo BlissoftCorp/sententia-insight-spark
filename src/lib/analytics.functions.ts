@@ -41,10 +41,36 @@ export type UsersListResponse = {
     id: string;
     name: string | null;
     email: string;
+    role: string | null;
+    isActive: boolean;
+    emailVerified: boolean;
     queries: number;
     tokens: number;
+    conversationsCount: number;
+    firstQueryAt: string | null;
     lastSession: string | null;
+    daysSinceLastQuery: number | null;
     createdAt: string;
+  }>;
+  error: string | null;
+};
+
+export type UserActivityResponse = {
+  conversations: Array<{
+    id: string;
+    title: string | null;
+    archived: boolean;
+    createdAt: string;
+    pairs: Array<{
+      userMessageId: string;
+      query: string;
+      queryCreatedAt: string;
+      assistantMessageId: string | null;
+      response: string | null;
+      responseCreatedAt: string | null;
+      confidence: string | null;
+      usage: Record<string, unknown> | null;
+    }>;
   }>;
   error: string | null;
 };
