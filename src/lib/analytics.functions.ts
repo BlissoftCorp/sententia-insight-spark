@@ -264,9 +264,15 @@ export const getUsersList = createServerFn({ method: "GET" }).handler(
           id: string;
           name: string | null;
           email: string;
+          role: string | null;
+          is_active: boolean;
+          email_verified: boolean;
           queries: string;
           tokens: string;
+          conversations_count: string;
+          first_query_at: Date | null;
           last_session: Date | null;
+          days_since_last_query: number | null;
           created_at: Date;
         }[]
       >`
@@ -274,22 +280,33 @@ export const getUsersList = createServerFn({ method: "GET" }).handler(
           u.id::text AS id,
           COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS name,
           u.email,
+          u.role,
+          u.is_active,
+          u.email_verified,
           COALESCE(stats.queries, 0)::text AS queries,
           COALESCE(stats.tokens, 0)::text AS tokens,
+          COALESCE(stats.conversations_count, 0)::text AS conversations_count,
+          stats.first_query_at,
           stats.last_session,
+          CASE
+            WHEN stats.last_session IS NULL THEN NULL
+            ELSE EXTRACT(DAY FROM now() - stats.last_session)::int
+          END AS days_since_last_query,
           u.created_at
         FROM users u
         LEFT JOIN (
           SELECT
             c.user_id,
+            COUNT(DISTINCT c.id) AS conversations_count,
             COUNT(m.*) FILTER (WHERE m.role='user') AS queries,
             COALESCE(SUM((m.usage->>'total_tokens')::int) FILTER (WHERE m.role='user'), 0) AS tokens,
-            MAX(m.created_at) AS last_session
+            MIN(m.created_at) FILTER (WHERE m.role='user') AS first_query_at,
+            MAX(m.created_at) FILTER (WHERE m.role='user') AS last_session
           FROM conversations c
           LEFT JOIN messages m ON m.conversation_id = c.id
           GROUP BY c.user_id
         ) stats ON stats.user_id = u.id
-        ORDER BY u.created_at DESC
+        ORDER BY stats.last_session DESC NULLS LAST, u.created_at DESC
       `;
 
       return {
@@ -297,9 +314,15 @@ export const getUsersList = createServerFn({ method: "GET" }).handler(
           id: r.id,
           name: r.name,
           email: r.email,
+          role: r.role,
+          isActive: r.is_active,
+          emailVerified: r.email_verified,
           queries: Number(r.queries),
           tokens: Number(r.tokens),
+          conversationsCount: Number(r.conversations_count),
+          firstQueryAt: r.first_query_at ? new Date(r.first_query_at).toISOString() : null,
           lastSession: r.last_session ? new Date(r.last_session).toISOString() : null,
+          daysSinceLastQuery: r.days_since_last_query,
           createdAt: new Date(r.created_at).toISOString(),
         })),
         error: null,
@@ -310,6 +333,93 @@ export const getUsersList = createServerFn({ method: "GET" }).handler(
     }
   },
 );
+
+const userActivityInput = z.object({ userId: z.string().min(1) });
+
+export const getUserActivity = createServerFn({ method: "POST" })
+  .inputValidator((data: { userId: string }) => userActivityInput.parse(data))
+  .handler(async ({ data }): Promise<UserActivityResponse> => {
+    try {
+      const { sql } = await import("./db.server");
+      const rows = await sql<
+        {
+          conversation_id: string;
+          conversation_title: string | null;
+          archived: boolean;
+          conversation_created_at: Date;
+          user_message_id: string;
+          user_query: string;
+          query_created_at: Date;
+          assistant_message_id: string | null;
+          assistant_response: string | null;
+          assistant_confidence: string | null;
+          assistant_usage: Record<string, unknown> | null;
+          response_created_at: Date | null;
+        }[]
+      >`
+        SELECT
+          c.id::text AS conversation_id,
+          c.title AS conversation_title,
+          c.archived,
+          c.created_at AS conversation_created_at,
+          user_msg.id::text AS user_message_id,
+          user_msg.content AS user_query,
+          user_msg.created_at AS query_created_at,
+          assistant_msg.id::text AS assistant_message_id,
+          assistant_msg.content AS assistant_response,
+          assistant_msg.confidence AS assistant_confidence,
+          assistant_msg.usage AS assistant_usage,
+          assistant_msg.created_at AS response_created_at
+        FROM conversations c
+        JOIN messages user_msg
+          ON user_msg.conversation_id = c.id AND user_msg.role = 'user'
+        LEFT JOIN LATERAL (
+          SELECT m.id, m.content, m.confidence, m.usage, m.created_at
+          FROM messages m
+          WHERE m.conversation_id = c.id
+            AND m.role = 'assistant'
+            AND m.created_at > user_msg.created_at
+          ORDER BY m.created_at ASC
+          LIMIT 1
+        ) assistant_msg ON true
+        WHERE c.user_id::text = ${data.userId}
+        ORDER BY c.created_at DESC, user_msg.created_at ASC
+      `;
+
+      const map = new Map<string, UserActivityResponse["conversations"][number]>();
+      for (const r of rows) {
+        let conv = map.get(r.conversation_id);
+        if (!conv) {
+          conv = {
+            id: r.conversation_id,
+            title: r.conversation_title,
+            archived: r.archived,
+            createdAt: new Date(r.conversation_created_at).toISOString(),
+            pairs: [],
+          };
+          map.set(r.conversation_id, conv);
+        }
+        conv.pairs.push({
+          userMessageId: r.user_message_id,
+          query: r.user_query,
+          queryCreatedAt: new Date(r.query_created_at).toISOString(),
+          assistantMessageId: r.assistant_message_id,
+          response: r.assistant_response,
+          responseCreatedAt: r.response_created_at
+            ? new Date(r.response_created_at).toISOString()
+            : null,
+          confidence: r.assistant_confidence,
+          usage: r.assistant_usage,
+        });
+      }
+
+      return { conversations: Array.from(map.values()), error: null };
+    } catch (e) {
+      console.error("getUserActivity failed:", e);
+      return { conversations: [], error: (e as Error).message };
+    }
+  });
+
 
 const userDetailInput = z.object({
   userId: z.string().min(1),
