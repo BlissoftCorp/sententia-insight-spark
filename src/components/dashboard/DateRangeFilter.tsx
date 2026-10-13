@@ -95,8 +95,7 @@ export function DateRangeFilter({ range, from, to, onChange }: Props) {
   const toDate = parseLocalDate(to);
   const today = startOfDay(new Date());
 
-  const apply = (nextFrom?: Date, nextTo?: Date) => {
-    if (!nextFrom || !nextTo) return;
+  const apply = (nextFrom: Date, nextTo: Date) => {
     onChange({
       range: "custom",
       from: format(nextFrom, "yyyy-MM-dd"),
@@ -106,14 +105,14 @@ export function DateRangeFilter({ range, from, to, onChange }: Props) {
 
   const handleFrom = (day: Date) => {
     setFromOpen(false);
-    // Keep the pair coherent: a start after the end pulls the end along with it.
-    const nextTo = toDate && +toDate < +day ? day : toDate;
+    // A start after the end pulls the end along; with no end yet, the range is that single day.
+    const nextTo = toDate && +toDate < +day ? day : (toDate ?? day);
     apply(day, nextTo);
   };
 
   const handleTo = (day: Date) => {
     setToOpen(false);
-    const nextFrom = fromDate && +fromDate > +day ? day : fromDate;
+    const nextFrom = fromDate && +fromDate > +day ? day : (fromDate ?? day);
     apply(nextFrom, day);
   };
 
