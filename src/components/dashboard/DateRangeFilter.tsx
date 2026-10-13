@@ -76,6 +76,7 @@ function DateField({ label, value, selected, disabled, open, onOpenChange, onSel
         </div>
         <Calendar
           mode="single"
+          required
           selected={selected}
           onSelect={onSelect}
           disabled={disabled}
