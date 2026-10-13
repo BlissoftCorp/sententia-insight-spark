@@ -13,7 +13,7 @@ import { DataErrorBanner } from "@/components/dashboard/DataErrorBanner";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSummary } from "@/lib/analytics.functions";
-import { RANGE_LABELS, type RangeKey } from "@/lib/mock-analytics";
+import { type RangeKey } from "@/lib/mock-analytics";
 
 const searchSchema = z.object({
   range: fallback(
