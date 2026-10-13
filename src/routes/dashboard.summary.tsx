@@ -5,7 +5,7 @@ import { z } from "zod";
 import { Suspense } from "react";
 import { Activity, CreditCard, Loader2, MessageSquare, UserPlus } from "lucide-react";
 
-import { DateRangeFilter } from "@/components/dashboard/DateRangeFilter";
+import { DateRangeFilter, formatRangeLabel } from "@/components/dashboard/DateRangeFilter";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { TopUsersCard } from "@/components/dashboard/TopUsersCard";
 import { TrendChart, type TrendRange } from "@/components/dashboard/TrendChart";
@@ -64,7 +64,9 @@ function SummaryPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Summary</h1>
           <p className="text-sm text-muted-foreground">
             Showing data for{" "}
-            <span className="font-medium text-foreground">{RANGE_LABELS[search.range]}</span>
+            <span className="font-medium text-foreground">
+              {formatRangeLabel(search.range, search.from, search.to)}
+            </span>
           </p>
         </div>
         <DateRangeFilter
