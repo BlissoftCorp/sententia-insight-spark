@@ -128,6 +128,40 @@ function UsersContent() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [exportingAll, setExportingAll] = useState(false);
+  const [exportingJson, setExportingJson] = useState(false);
+
+  const exportAllJson = async () => {
+    if (exportingJson) return;
+    setExportingJson(true);
+    try {
+      const result = await getAllUsersActivity();
+      if (result.error) {
+        alert(`Export failed: ${result.error}`);
+        return;
+      }
+      const payload = {
+        export: "All users with at least one query",
+        generated_at: new Date().toISOString(),
+        users_count: result.users.length,
+        users: result.users,
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json;charset=utf-8",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `all_users_conversations_${format(new Date(), "yyyyMMdd-HHmm")}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    } catch (e) {
+      alert(`Export failed: ${(e as Error).message}`);
+    } finally {
+      setExportingJson(false);
+    }
+  };
 
   const exportAllExcel = async () => {
     if (exportingAll) return;
@@ -181,9 +215,9 @@ function UsersContent() {
               conversation_id: c.id,
               conversation_title: c.title ?? "Untitled",
               pair_index: idx + 1,
-              query: p.query,
+              query: (p.query ?? "").slice(0, 32000),
               query_at: p.queryCreatedAt,
-              response: p.response ?? "",
+              response: (p.response ?? "").slice(0, 32000),
               response_at: p.responseCreatedAt ?? "",
               confidence: p.confidence ?? "",
               total_tokens: p.usage?.total_tokens ?? "",
@@ -339,6 +373,20 @@ function UsersContent() {
               <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" />
             )}
             Export all (Excel)
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportAllJson}
+            disabled={exportingJson}
+            className="md:h-10"
+          >
+            {exportingJson ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <FileDown className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Export all (JSON)
           </Button>
           <div className="relative w-full md:w-80">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
