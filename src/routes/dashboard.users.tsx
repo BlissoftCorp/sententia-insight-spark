@@ -15,6 +15,7 @@ import {
   XCircle,
   FileSpreadsheet,
   FileText,
+  FileDown,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
@@ -258,6 +259,52 @@ function UsersContent() {
     return list;
   }, [query, data.users, sortKey, sortDir]);
 
+  const csvEscape = (value: string) =>
+    /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+
+  const exportTableCsv = () => {
+    const header = [
+      "name",
+      "email",
+      "conversations",
+      "queries",
+      "first_query",
+      "last_query",
+      "days_idle",
+      "created",
+    ];
+    const lines = [header.join(",")];
+    rows.forEach((u) => {
+      lines.push(
+        [
+          u.name ?? u.email.split("@")[0],
+          u.email,
+          u.conversationsCount,
+          u.queries,
+          u.firstQueryAt ?? "",
+          u.lastSession ?? "",
+          u.daysSinceLastQuery === null ? "" : u.daysSinceLastQuery,
+          u.createdAt,
+        ]
+          .map(String)
+          .map(csvEscape)
+          .join(","),
+      );
+    });
+    // BOM so Excel detects UTF-8
+    const blob = new Blob(["\uFEFF" + lines.join("\n")], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `users_table_${format(new Date(), "yyyyMMdd-HHmm")}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  };
+
   const sortProps = { current: sortKey, dir: sortDir, onToggle: toggleSort };
 
   return (
@@ -270,6 +317,15 @@ function UsersContent() {
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportTableCsv}
+            className="md:h-10"
+          >
+            <FileDown className="mr-1.5 h-3.5 w-3.5" />
+            Export table (CSV)
+          </Button>
           <Button
             variant="outline"
             size="sm"
