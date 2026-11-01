@@ -1,5 +1,5 @@
 import { Suspense, useState } from "react";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, type ErrorComponentProps } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -54,10 +54,12 @@ export const Route = createFileRoute("/dashboard/users_/$userId")({
       </Button>
     </div>
   ),
-  errorComponent: ({ error }) => (
+  errorComponent: ({ error }: ErrorComponentProps) => (
     <div className="mx-auto max-w-2xl py-16 text-center">
       <h1 className="text-2xl font-semibold">Something went wrong</h1>
-      <p className="mt-2 text-muted-foreground">{error.message}</p>
+      <p className="mt-2 text-muted-foreground">
+        {error instanceof Error ? error.message : String(error)}
+      </p>
     </div>
   ),
   component: UserDetailPage,
