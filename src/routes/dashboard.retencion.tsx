@@ -391,8 +391,8 @@ function RetencionContent({ params }: { params: Params }) {
                   tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                 />
                 <Tooltip
-                  formatter={(value: number | null) => [
-                    value === null ? "N/A" : `${value}%`,
+                  formatter={(value) => [
+                    typeof value === "number" ? `${value}%` : "N/A",
                     "Retención",
                   ]}
                 />

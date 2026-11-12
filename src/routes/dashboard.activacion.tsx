@@ -334,8 +334,8 @@ function ActivacionContent({ params }: { params: Params }) {
                     tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                   />
                   <Tooltip
-                    formatter={(value: number | null) => [
-                      value === null ? "N/A" : formatMedian(value),
+                    formatter={(value) => [
+                      typeof value === "number" ? formatMedian(value) : "N/A",
                       "Mediana",
                     ]}
                   />
