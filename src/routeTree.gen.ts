@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as DashboardActivacionRouteImport } from './routes/dashboard.activacion'
 import { Route as DashboardPaymentsRouteImport } from './routes/dashboard.payments'
 import { Route as DashboardSummaryRouteImport } from './routes/dashboard.summary'
 import { Route as DashboardTrackingRouteImport } from './routes/dashboard.tracking'
@@ -26,6 +27,11 @@ const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardActivacionRoute = DashboardActivacionRouteImport.update({
+  id: '/activacion',
+  path: '/activacion',
+  getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardPaymentsRoute = DashboardPaymentsRouteImport.update({
   id: '/payments',
@@ -56,6 +62,7 @@ const DashboardUsersUserIdRoute = DashboardUsersUserIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/dashboard/activacion': typeof DashboardActivacionRoute
   '/dashboard/payments': typeof DashboardPaymentsRoute
   '/dashboard/summary': typeof DashboardSummaryRoute
   '/dashboard/tracking': typeof DashboardTrackingRoute
@@ -65,6 +72,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/dashboard/activacion': typeof DashboardActivacionRoute
   '/dashboard/payments': typeof DashboardPaymentsRoute
   '/dashboard/summary': typeof DashboardSummaryRoute
   '/dashboard/tracking': typeof DashboardTrackingRoute
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/dashboard/activacion': typeof DashboardActivacionRoute
   '/dashboard/payments': typeof DashboardPaymentsRoute
   '/dashboard/summary': typeof DashboardSummaryRoute
   '/dashboard/tracking': typeof DashboardTrackingRoute
@@ -86,6 +95,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
+    | '/dashboard/activacion'
     | '/dashboard/payments'
     | '/dashboard/summary'
     | '/dashboard/tracking'
@@ -95,6 +105,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dashboard'
+    | '/dashboard/activacion'
     | '/dashboard/payments'
     | '/dashboard/summary'
     | '/dashboard/tracking'
@@ -104,6 +115,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/dashboard'
+    | '/dashboard/activacion'
     | '/dashboard/payments'
     | '/dashboard/summary'
     | '/dashboard/tracking'
@@ -131,6 +143,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/activacion': {
+      id: '/dashboard/activacion'
+      path: '/activacion'
+      fullPath: '/dashboard/activacion'
+      preLoaderRoute: typeof DashboardActivacionRouteImport
+      parentRoute: typeof DashboardRoute
     }
     '/dashboard/payments': {
       id: '/dashboard/payments'
@@ -171,6 +190,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface DashboardRouteChildren {
+  DashboardActivacionRoute: typeof DashboardActivacionRoute
   DashboardPaymentsRoute: typeof DashboardPaymentsRoute
   DashboardSummaryRoute: typeof DashboardSummaryRoute
   DashboardTrackingRoute: typeof DashboardTrackingRoute
@@ -179,6 +199,7 @@ interface DashboardRouteChildren {
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardActivacionRoute: DashboardActivacionRoute,
   DashboardPaymentsRoute: DashboardPaymentsRoute,
   DashboardSummaryRoute: DashboardSummaryRoute,
   DashboardTrackingRoute: DashboardTrackingRoute,
