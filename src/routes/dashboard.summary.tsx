@@ -41,6 +41,10 @@ export const Route = createFileRoute("/dashboard/summary")({
     meta: [
       { title: "Summary — Sententia Analytics" },
       { name: "description", content: "New users, active users, queries and payments at a glance." },
+      { property: "og:title", content: "Summary — Sententia Analytics" },
+      { property: "og:description", content: "New users, active users, queries and payments at a glance." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: SummaryPage,
