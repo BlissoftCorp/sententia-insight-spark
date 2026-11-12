@@ -41,6 +41,10 @@ export const Route = createFileRoute("/dashboard/summary")({
     meta: [
       { title: "Summary — Sententia Analytics" },
       { name: "description", content: "New users, active users, queries and payments at a glance." },
+      { property: "og:title", content: "Summary — Sententia Analytics" },
+      { property: "og:description", content: "New users, active users, queries and payments at a glance." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: SummaryPage,
@@ -114,19 +118,19 @@ function SummaryContent({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="New users"
-          value={data.kpis.newUsers.value}
+          value={data.error ? null : data.kpis.newUsers.value}
           delta={data.kpis.newUsers.delta}
           icon={UserPlus}
         />
         <KpiCard
           label="Active users"
-          value={data.kpis.activeUsers.value}
+          value={data.error ? null : data.kpis.activeUsers.value}
           delta={data.kpis.activeUsers.delta}
           icon={Activity}
         />
         <KpiCard
           label="Queries"
-          value={data.kpis.queries.value}
+          value={data.error ? null : data.kpis.queries.value}
           delta={data.kpis.queries.delta}
           icon={MessageSquare}
         />

@@ -56,6 +56,10 @@ export const Route = createFileRoute("/dashboard/users")({
     meta: [
       { title: "Users — Sententia Analytics" },
       { name: "description", content: "User activity and churn analysis." },
+      { property: "og:title", content: "Users — Sententia Analytics" },
+      { property: "og:description", content: "User activity and churn analysis." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: UsersPage,

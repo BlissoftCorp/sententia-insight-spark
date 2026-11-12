@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { withDataTimeout } from "./data-timeout";
 
 import { getAppTimezone, resolveRange } from "./analytics-range";
 
@@ -149,6 +150,7 @@ export const getSummary = createServerFn({ method: "POST" })
     };
 
     try {
+      return await withDataTimeout(async () => {
       const { sql } = await import("./db.server");
       const tz = getAppTimezone();
       const { from, to } = resolveRange(data.range as never, data.from, data.to, tz);
@@ -268,15 +270,17 @@ export const getSummary = createServerFn({ method: "POST" })
         })),
         error: null,
       };
+      });
     } catch (e) {
       console.error("getSummary failed:", e);
-      return { ...empty, error: (e as Error).message };
+      return { ...empty, error: e instanceof Error ? e.message : "No se pudieron cargar los datos de Sententia." };
     }
   });
 
 export const getUsersList = createServerFn({ method: "GET" }).handler(
   async (): Promise<UsersListResponse> => {
     try {
+      return await withDataTimeout(async () => {
       const { sql } = await import("./db.server");
       const rows = await sql<
         {
@@ -346,9 +350,10 @@ export const getUsersList = createServerFn({ method: "GET" }).handler(
         })),
         error: null,
       };
+      });
     } catch (e) {
       console.error("getUsersList failed:", e);
-      return { users: [], error: (e as Error).message };
+      return { users: [], error: e instanceof Error ? e.message : "No se pudieron cargar los datos de Sententia." };
     }
   },
 );
@@ -359,6 +364,7 @@ export const getUserActivity = createServerFn({ method: "POST" })
   .inputValidator((data: { userId: string }) => userActivityInput.parse(data))
   .handler(async ({ data }): Promise<UserActivityResponse> => {
     try {
+      return await withDataTimeout(async () => {
       const { sql } = await import("./db.server");
       const rows = await sql<
         {
@@ -433,9 +439,10 @@ export const getUserActivity = createServerFn({ method: "POST" })
       }
 
       return { conversations: Array.from(map.values()), error: null };
+      });
     } catch (e) {
       console.error("getUserActivity failed:", e);
-      return { conversations: [], error: (e as Error).message };
+      return { conversations: [], error: e instanceof Error ? e.message : "No se pudieron cargar los datos de Sententia." };
     }
   });
 
@@ -451,6 +458,7 @@ export const getUserDetail = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }): Promise<UserDetailResponse> => {
     try {
+      return await withDataTimeout(async () => {
       const { sql } = await import("./db.server");
       const tz = getAppTimezone();
       // Anchor "today" to the configured app timezone, then go back N-1 days.
@@ -527,6 +535,7 @@ export const getUserDetail = createServerFn({ method: "POST" })
         lastPayment: null,
         error: null,
       };
+      });
     } catch (e) {
       console.error("getUserDetail failed:", e);
       return {
@@ -534,7 +543,7 @@ export const getUserDetail = createServerFn({ method: "POST" })
         series: [],
         payments: [],
         lastPayment: null,
-        error: (e as Error).message,
+        error: e instanceof Error ? e.message : "No se pudieron cargar los datos de Sententia.",
       };
     }
   });
@@ -565,6 +574,7 @@ export const getTracking = createServerFn({ method: "GET" }).handler(
       error: null,
     };
     try {
+      return await withDataTimeout(async () => {
       const { sql } = await import("./db.server");
       const tz = getAppTimezone();
       const rows = await sql<
@@ -621,9 +631,10 @@ export const getTracking = createServerFn({ method: "GET" }).handler(
         returnedDifferentDay: Number(r?.returned_different_day ?? 0),
         error: null,
       };
+      });
     } catch (e) {
       console.error("getTracking failed:", e);
-      return { ...empty, error: (e as Error).message };
+      return { ...empty, error: e instanceof Error ? e.message : "No se pudieron cargar los datos de Sententia." };
     }
   },
 );
@@ -631,6 +642,7 @@ export const getTracking = createServerFn({ method: "GET" }).handler(
 export const getAllUsersActivity = createServerFn({ method: "GET" }).handler(
   async (): Promise<AllUsersActivityResponse> => {
     try {
+      return await withDataTimeout(async () => {
       const { sql } = await import("./db.server");
       const rows = await sql<
         {
@@ -748,9 +760,10 @@ export const getAllUsersActivity = createServerFn({ method: "GET" }).handler(
       }
 
       return { users: Array.from(userMap.values()), error: null };
+      });
     } catch (e) {
       console.error("getAllUsersActivity failed:", e);
-      return { users: [], error: (e as Error).message };
+      return { users: [], error: e instanceof Error ? e.message : "No se pudieron cargar los datos de Sententia." };
     }
   },
 );

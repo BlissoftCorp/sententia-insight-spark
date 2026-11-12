@@ -7,6 +7,10 @@ export const Route = createFileRoute("/dashboard/payments")({
     meta: [
       { title: "Payments — Sententia Analytics" },
       { name: "description", content: "Payment analytics for Sententia." },
+      { property: "og:title", content: "Payments — Sententia Analytics" },
+      { property: "og:description", content: "Payment analytics for Sententia." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: PaymentsPage,

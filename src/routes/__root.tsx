@@ -81,8 +81,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "Sententia Insights Dashboard" },
       { name: "twitter:description", content: "Analytics dashboard for Sententia." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bb731a0d-7332-4ba5-a4da-ab8c5db0e0a4/id-preview-b0b6101e--d6e86fd6-8ffb-49c0-bd99-9bae053bdd5b.lovable.app-1778630003467.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bb731a0d-7332-4ba5-a4da-ab8c5db0e0a4/id-preview-b0b6101e--d6e86fd6-8ffb-49c0-bd99-9bae053bdd5b.lovable.app-1778630003467.png" },
     ],
     links: [
       {

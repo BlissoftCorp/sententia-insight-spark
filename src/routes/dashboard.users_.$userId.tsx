@@ -44,7 +44,14 @@ export const Route = createFileRoute("/dashboard/users_/$userId")({
   loader: ({ params, context }) =>
     context.queryClient.ensureQueryData(userQuery(params.userId, 30)),
   head: () => ({
-    meta: [{ title: "User — Sententia Analytics" }],
+    meta: [
+      { title: "User — Sententia Analytics" },
+      { name: "description", content: "Individual user activity in Sententia." },
+      { property: "og:title", content: "User — Sententia Analytics" },
+      { property: "og:description", content: "Individual user activity in Sententia." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
   }),
   notFoundComponent: () => (
     <div className="mx-auto max-w-2xl py-16 text-center">

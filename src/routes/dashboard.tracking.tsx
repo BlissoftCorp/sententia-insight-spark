@@ -30,6 +30,10 @@ export const Route = createFileRoute("/dashboard/tracking")({
     meta: [
       { title: "Tracking — Sententia Analytics" },
       { name: "description", content: "User behavior KPIs for Sententia." },
+      { property: "og:title", content: "Tracking — Sententia Analytics" },
+      { property: "og:description", content: "User behavior KPIs for Sententia." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: TrackingPage,
